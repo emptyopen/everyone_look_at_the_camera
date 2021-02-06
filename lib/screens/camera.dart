@@ -14,6 +14,10 @@ class _CameraScreenState extends State<CameraScreen> {
   List cameras;
   int selectedCameraIndex;
   String imgPath;
+  bool noisyCountdownEnabled = false;
+  bool giantNumbersEnabled = true;
+  List<bool> lastSecondNoise = [true, false, false];
+  List<bool> voiceActivationCapture = [true, false, false];
 
   Future initCamera(CameraDescription cameraDescription) async {
     if (cameraController != null) {
@@ -48,9 +52,8 @@ class _CameraScreenState extends State<CameraScreen> {
   Widget cameraPreview() {
     if (cameraController == null || !cameraController.value.isInitialized) {
       return Text(
-        'Loading',
-        style: TextStyle(
-            color: Colors.white, fontSize: 20.0, fontWeight: FontWeight.bold),
+        'Loading...',
+        style: TextStyle(color: Colors.white, fontSize: 40.0),
       );
     }
 
@@ -72,6 +75,7 @@ class _CameraScreenState extends State<CameraScreen> {
               child: Icon(
                 Icons.camera,
                 color: Colors.black,
+                size: 40,
               ),
               backgroundColor: Colors.white,
               onPressed: () {
@@ -82,6 +86,227 @@ class _CameraScreenState extends State<CameraScreen> {
         ),
       ),
     );
+  }
+
+  Widget settingsControl(context) {
+    return Expanded(
+      child: Align(
+        alignment: Alignment.center,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          mainAxisSize: MainAxisSize.max,
+          children: <Widget>[
+            FloatingActionButton(
+              child: Icon(
+                Icons.settings,
+                color: Colors.black,
+                size: 40,
+              ),
+              backgroundColor: Colors.white,
+              onPressed: () {
+                showDialog<Null>(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return settingsDialog();
+                  },
+                );
+              },
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget settingsDialog() {
+    var width = MediaQuery.of(context).size.width;
+    return StatefulBuilder(builder: (context, setState) {
+      return AlertDialog(
+        title: Text('Camera settings:'),
+        contentPadding: EdgeInsets.fromLTRB(30, 0, 30, 0),
+        content: Container(
+          height: 500,
+          width: width * 0.95,
+          child: ListView(
+            children: <Widget>[
+              SizedBox(height: 20),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.grey,
+                  ),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('Giant numbers'),
+                    Switch(
+                        value: giantNumbersEnabled,
+                        onChanged: (bool newValue) {
+                          setState(() {
+                            giantNumbersEnabled = newValue;
+                          });
+                        }),
+                  ],
+                ),
+              ),
+              SizedBox(height: 20),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.grey,
+                  ),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(10),
+                  child: Column(
+                    children: [
+                      Text('Noisy countdown'),
+                      SizedBox(height: 10),
+                      ToggleButtons(
+                        children: <Widget>[
+                          Icon(
+                            Icons.cancel,
+                            color: Colors.grey,
+                          ),
+                          Icon(Icons.format_list_numbered),
+                          Icon(Icons.cake),
+                        ],
+                        onPressed: (int index) {
+                          setState(() {
+                            for (int buttonIndex = 0;
+                                buttonIndex < lastSecondNoise.length;
+                                buttonIndex++) {
+                              if (buttonIndex == index) {
+                                lastSecondNoise[buttonIndex] = true;
+                              } else {
+                                lastSecondNoise[buttonIndex] = false;
+                              }
+                            }
+                          });
+                        },
+                        isSelected: lastSecondNoise,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(height: 20),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.grey,
+                  ),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(10),
+                  child: Column(
+                    children: [
+                      Text('Last-second noise'),
+                      SizedBox(height: 10),
+                      ToggleButtons(
+                        children: <Widget>[
+                          Icon(
+                            Icons.cancel,
+                            color: Colors.grey,
+                          ),
+                          Icon(Icons.call),
+                          Icon(Icons.cake),
+                        ],
+                        onPressed: (int index) {
+                          setState(() {
+                            for (int buttonIndex = 0;
+                                buttonIndex < lastSecondNoise.length;
+                                buttonIndex++) {
+                              if (buttonIndex == index) {
+                                lastSecondNoise[buttonIndex] = true;
+                              } else {
+                                lastSecondNoise[buttonIndex] = false;
+                              }
+                            }
+                          });
+                        },
+                        isSelected: lastSecondNoise,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(height: 20),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.grey,
+                  ),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(10),
+                  child: Column(
+                    children: [
+                      Text('Voice activation capture'),
+                      SizedBox(height: 10),
+                      ToggleButtons(
+                        children: <Widget>[
+                          Padding(
+                            padding: EdgeInsets.all(5),
+                            child: Text(
+                              'None',
+                              style: TextStyle(
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.all(5),
+                            child: Text('"capture"'),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.all(5),
+                            child: Text('"cheese"'),
+                          ),
+                        ],
+                        constraints: BoxConstraints.loose(Size.fromRadius(150)),
+                        onPressed: (int index) {
+                          setState(() {
+                            for (int buttonIndex = 0;
+                                buttonIndex < voiceActivationCapture.length;
+                                buttonIndex++) {
+                              if (buttonIndex == index) {
+                                voiceActivationCapture[buttonIndex] = true;
+                              } else {
+                                voiceActivationCapture[buttonIndex] = false;
+                              }
+                            }
+                          });
+                        },
+                        isSelected: voiceActivationCapture,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: <Widget>[
+          Container(
+            child: FlatButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                'Done',
+                style: TextStyle(fontSize: 16),
+              ),
+            ),
+          ),
+        ],
+      );
+    });
   }
 
   Widget cameraToggle() {
@@ -181,11 +406,12 @@ class _CameraScreenState extends State<CameraScreen> {
                   children: <Widget>[
                     cameraToggle(),
                     cameraControl(context),
+                    settingsControl(context),
                     Spacer(),
                   ],
                 ),
               ),
-            )
+            ),
           ],
         ),
       ),

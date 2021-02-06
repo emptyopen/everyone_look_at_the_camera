@@ -1,6 +1,11 @@
 import 'package:everyone_look_at_the_camera/screens/camera.dart';
 import 'package:flutter/material.dart';
 
+// TODO:
+// confirm existing functionality
+// preview should exist while taking a picture
+// after taken: instant share option, or take more
+
 void main() {
   runApp(MyApp());
 }
