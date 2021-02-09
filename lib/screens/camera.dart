@@ -14,8 +14,9 @@ class _CameraScreenState extends State<CameraScreen> {
   List cameras;
   int selectedCameraIndex;
   String imgPath;
-  bool noisyCountdownEnabled = false;
+  int countdownTimer = 5;
   bool giantNumbersEnabled = true;
+  List<bool> noisyCountdown = [true, false, false];
   List<bool> lastSecondNoise = [true, false, false];
   List<bool> voiceActivationCapture = [true, false, false];
 
@@ -52,8 +53,8 @@ class _CameraScreenState extends State<CameraScreen> {
   Widget cameraPreview() {
     if (cameraController == null || !cameraController.value.isInitialized) {
       return Text(
-        'Loading...',
-        style: TextStyle(color: Colors.white, fontSize: 40.0),
+        'loading camera...',
+        style: TextStyle(color: Colors.white, fontSize: 20.0),
       );
     }
 
@@ -123,12 +124,57 @@ class _CameraScreenState extends State<CameraScreen> {
     return StatefulBuilder(builder: (context, setState) {
       return AlertDialog(
         title: Text('Camera settings:'),
+        backgroundColor: Colors.white.withAlpha(220),
         contentPadding: EdgeInsets.fromLTRB(30, 0, 30, 0),
         content: Container(
           height: 500,
           width: width * 0.95,
           child: ListView(
             children: <Widget>[
+              SizedBox(height: 20),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.grey,
+                  ),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('Countdown timer'),
+                    SizedBox(width: 10),
+                    DropdownButton<int>(
+                      value: countdownTimer,
+                      // icon: Icon(Icons.arrow_downward),
+                      iconSize: 24,
+                      elevation: 16,
+                      style: TextStyle(color: Colors.deepPurple),
+                      underline: Container(
+                        height: 2,
+                        color: Colors.deepPurpleAccent,
+                      ),
+                      onChanged: (int newValue) {
+                        setState(() {
+                          countdownTimer = newValue;
+                        });
+                      },
+                      items: <int>[0, 3, 5, 10, 15]
+                          .map<DropdownMenuItem<int>>((int value) {
+                        return DropdownMenuItem<int>(
+                          value: value,
+                          child: Text(
+                            '$value',
+                            style: TextStyle(
+                              fontSize: 20,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
               SizedBox(height: 20),
               Container(
                 decoration: BoxDecoration(
@@ -177,17 +223,17 @@ class _CameraScreenState extends State<CameraScreen> {
                         onPressed: (int index) {
                           setState(() {
                             for (int buttonIndex = 0;
-                                buttonIndex < lastSecondNoise.length;
+                                buttonIndex < noisyCountdown.length;
                                 buttonIndex++) {
                               if (buttonIndex == index) {
-                                lastSecondNoise[buttonIndex] = true;
+                                noisyCountdown[buttonIndex] = true;
                               } else {
-                                lastSecondNoise[buttonIndex] = false;
+                                noisyCountdown[buttonIndex] = false;
                               }
                             }
                           });
                         },
-                        isSelected: lastSecondNoise,
+                        isSelected: noisyCountdown,
                       ),
                     ],
                   ),
