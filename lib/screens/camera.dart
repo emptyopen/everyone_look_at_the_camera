@@ -3,6 +3,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
+import 'dart:async';
+import 'dart:math';
 
 class CameraScreen extends StatefulWidget {
   @override
@@ -16,6 +18,7 @@ class _CameraScreenState extends State<CameraScreen> {
   String imgPath;
   int countdownTimer = 5;
   bool giantNumbersEnabled = true;
+  int countdownSeconds;
   List<bool> noisyCountdown = [true, false, false];
   List<bool> lastSecondNoise = [true, false, false];
   List<bool> voiceActivationCapture = [true, false, false];
@@ -73,6 +76,7 @@ class _CameraScreenState extends State<CameraScreen> {
           mainAxisSize: MainAxisSize.max,
           children: <Widget>[
             FloatingActionButton(
+              heroTag: 'cameraControl',
               child: Icon(
                 Icons.camera,
                 color: Colors.black,
@@ -98,6 +102,7 @@ class _CameraScreenState extends State<CameraScreen> {
           mainAxisSize: MainAxisSize.max,
           children: <Widget>[
             FloatingActionButton(
+              heroTag: 'settingsControl',
               child: Icon(
                 Icons.settings,
                 color: Colors.black,
@@ -365,21 +370,38 @@ class _CameraScreenState extends State<CameraScreen> {
 
     return Expanded(
       child: Align(
-        alignment: Alignment.centerLeft,
-        child: FlatButton.icon(
-            onPressed: () {
-              onSwitchCamera();
-            },
-            icon: Icon(
-              getCameraLensIcons(lensDirection),
-              color: Colors.white,
-              size: 24,
-            ),
-            label: Text(
-              '${lensDirection.toString().substring(lensDirection.toString().indexOf('.') + 1).toUpperCase()}',
-              style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
-            )),
+        alignment: Alignment.center,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          mainAxisSize: MainAxisSize.max,
+          children: <Widget>[
+            FloatingActionButton(
+              heroTag: 'cameraToggle',
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '${lensDirection.toString().substring(lensDirection.toString().indexOf('.') + 1).toUpperCase()}',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 10,
+                    ),
+                  ),
+                  Icon(
+                    getCameraLensIcons(lensDirection),
+                    color: Colors.black,
+                    size: 20,
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.white,
+              onPressed: () {
+                onSwitchCamera();
+              },
+            )
+          ],
+        ),
       ),
     );
   }
@@ -390,8 +412,28 @@ class _CameraScreenState extends State<CameraScreen> {
       final name = DateTime.now();
       final path = "${p.path}/$name.png";
 
+      countdownSeconds = countdownTimer;
+      const oneSec = const Duration(seconds: 1);
+      Timer.periodic(
+        oneSec,
+        (Timer timer) {
+          if (countdownSeconds == 0) {
+            setState(() {
+              timer.cancel();
+            });
+          } else {
+            setState(() {
+              countdownSeconds--;
+            });
+          }
+        },
+      );
+
+      while (countdownSeconds > 0) {
+        await Future.delayed(Duration(milliseconds: 50));
+      }
+
       await cameraController.takePicture(path).then((value) {
-        print('here');
         print(path);
         Navigator.push(
             context,
@@ -425,6 +467,26 @@ class _CameraScreenState extends State<CameraScreen> {
     });
   }
 
+  Widget countdown() {
+    if (countdownSeconds == null || countdownSeconds == 0) {
+      return Container();
+    }
+    return new OrientationBuilder(
+      builder: (context, orientation) {
+        return Transform.rotate(
+          angle: orientation == Orientation.portrait ? pi / 2 : pi / 2,
+          child: Text(
+            '$countdownSeconds',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 390,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -441,6 +503,10 @@ class _CameraScreenState extends State<CameraScreen> {
               child: cameraPreview(),
             ),
             Align(
+              alignment: Alignment.center,
+              child: countdown(),
+            ),
+            Align(
               alignment: Alignment.bottomCenter,
               child: Container(
                 height: 120,
@@ -453,7 +519,7 @@ class _CameraScreenState extends State<CameraScreen> {
                     cameraToggle(),
                     cameraControl(context),
                     settingsControl(context),
-                    Spacer(),
+                    // Spacer(),
                   ],
                 ),
               ),
