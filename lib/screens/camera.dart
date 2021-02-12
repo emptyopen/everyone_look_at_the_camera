@@ -5,6 +5,10 @@ import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/services.dart';
+import 'package:sensors/sensors.dart';
+
+import '../sound_manager.dart';
 
 class CameraScreen extends StatefulWidget {
   @override
@@ -16,12 +20,57 @@ class _CameraScreenState extends State<CameraScreen> {
   List cameras;
   int selectedCameraIndex;
   String imgPath;
-  int countdownTimer = 5;
-  bool giantNumbersEnabled = true;
+  bool takingPhoto = false;
+  int countdownTimer = 3;
   int countdownSeconds;
+  bool giantNumbersEnabled = true;
   List<bool> noisyCountdown = [true, false, false];
   List<bool> lastSecondNoise = [true, false, false];
   List<bool> voiceActivationCapture = [true, false, false];
+  SoundManager soundManager1 = new SoundManager();
+  SoundManager soundManager2 = new SoundManager();
+
+  List<double> _accelerometerValues;
+  List<double> _userAccelerometerValues;
+  List<double> _gyroscopeValues;
+  List<StreamSubscription<dynamic>> _streamSubscriptions =
+      <StreamSubscription<dynamic>>[];
+
+  @override
+  void initState() {
+    super.initState();
+    availableCameras().then((value) {
+      cameras = value;
+      if (cameras.length > 0) {
+        setState(() {
+          selectedCameraIndex = 1;
+        });
+        initCamera(cameras[selectedCameraIndex]).then((value) {});
+      } else {
+        print('No camera available');
+      }
+    }).catchError((e) {
+      print('Error : ${e.code}');
+    });
+
+    _streamSubscriptions
+        .add(accelerometerEvents.listen((AccelerometerEvent event) {
+      setState(() {
+        _accelerometerValues = <double>[event.x, event.y, event.z];
+      });
+    }));
+    _streamSubscriptions.add(gyroscopeEvents.listen((GyroscopeEvent event) {
+      setState(() {
+        _gyroscopeValues = <double>[event.x, event.y, event.z];
+      });
+    }));
+    _streamSubscriptions
+        .add(userAccelerometerEvents.listen((UserAccelerometerEvent event) {
+      setState(() {
+        _userAccelerometerValues = <double>[event.x, event.y, event.z];
+      });
+    }));
+  }
 
   Future initCamera(CameraDescription cameraDescription) async {
     if (cameraController != null) {
@@ -52,6 +101,74 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
+  onCapture(context) async {
+    try {
+      final p = await getTemporaryDirectory();
+      final name = DateTime.now();
+      final path = "${p.path}/$name.png";
+
+      setState(() {
+        takingPhoto = true;
+      });
+
+      countdownSeconds = countdownTimer + 1;
+      const oneSec = const Duration(seconds: 1);
+      Timer.periodic(
+        oneSec,
+        (Timer timer) {
+          if (countdownSeconds == 0) {
+            setState(() {
+              timer.cancel();
+            });
+          } else {
+            setState(() {
+              countdownSeconds--;
+            });
+            if (countdownSeconds > 0 && countdownSeconds <= 5) {
+              if (countdownSeconds % 2 == 0) {
+                soundManager1.playLocal('beep1.wav');
+              } else {
+                soundManager2.playLocal('beep1.wav');
+              }
+            } else {
+              // play final sound
+              soundManager1.playLocal('beep2.wav');
+            }
+          }
+        },
+      );
+
+      while (countdownSeconds > 0) {
+        await Future.delayed(Duration(milliseconds: 50));
+      }
+
+      await cameraController.takePicture(path).then((value) {
+        print(path);
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => PreviewScreen(
+                      imgPath: path,
+                      fileName: "$name.png",
+                    )));
+      });
+    } catch (e) {
+      showCameraException(e);
+    }
+
+    setState(() {
+      takingPhoto = false;
+    });
+  }
+
+  Future myLoadAsset(String path) async {
+    try {
+      return await rootBundle.loadString(path);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Display camera preview
   Widget cameraPreview() {
     if (cameraController == null || !cameraController.value.isInitialized) {
@@ -68,29 +185,23 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Widget cameraControl(context) {
-    return Expanded(
-      child: Align(
-        alignment: Alignment.center,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          mainAxisSize: MainAxisSize.max,
-          children: <Widget>[
-            FloatingActionButton(
-              heroTag: 'cameraControl',
-              child: Icon(
-                Icons.camera,
-                color: Colors.black,
-                size: 40,
-              ),
-              backgroundColor: Colors.white,
-              onPressed: () {
-                onCapture(context);
-              },
-            )
-          ],
-        ),
-      ),
-    );
+    return Container(
+        width: 100.0,
+        height: 100.0,
+        child: RawMaterialButton(
+          shape: CircleBorder(),
+          elevation: 0.0,
+          fillColor: Colors.white,
+          child: Icon(
+            Icons.camera,
+            color: Colors.black,
+            size: 70,
+          ),
+          onPressed: () {
+            HapticFeedback.vibrate();
+            onCapture(context);
+          },
+        ));
   }
 
   Widget settingsControl(context) {
@@ -110,6 +221,7 @@ class _CameraScreenState extends State<CameraScreen> {
               ),
               backgroundColor: Colors.white,
               onPressed: () {
+                HapticFeedback.vibrate();
                 showDialog<Null>(
                   context: context,
                   builder: (BuildContext context) {
@@ -160,6 +272,7 @@ class _CameraScreenState extends State<CameraScreen> {
                         color: Colors.deepPurpleAccent,
                       ),
                       onChanged: (int newValue) {
+                        HapticFeedback.vibrate();
                         setState(() {
                           countdownTimer = newValue;
                         });
@@ -195,6 +308,7 @@ class _CameraScreenState extends State<CameraScreen> {
                     Switch(
                         value: giantNumbersEnabled,
                         onChanged: (bool newValue) {
+                          HapticFeedback.vibrate();
                           setState(() {
                             giantNumbersEnabled = newValue;
                           });
@@ -226,6 +340,7 @@ class _CameraScreenState extends State<CameraScreen> {
                           Icon(Icons.cake),
                         ],
                         onPressed: (int index) {
+                          HapticFeedback.vibrate();
                           setState(() {
                             for (int buttonIndex = 0;
                                 buttonIndex < noisyCountdown.length;
@@ -268,6 +383,7 @@ class _CameraScreenState extends State<CameraScreen> {
                           Icon(Icons.cake),
                         ],
                         onPressed: (int index) {
+                          HapticFeedback.vibrate();
                           setState(() {
                             for (int buttonIndex = 0;
                                 buttonIndex < lastSecondNoise.length;
@@ -322,6 +438,7 @@ class _CameraScreenState extends State<CameraScreen> {
                         ],
                         constraints: BoxConstraints.loose(Size.fromRadius(150)),
                         onPressed: (int index) {
+                          HapticFeedback.vibrate();
                           setState(() {
                             for (int buttonIndex = 0;
                                 buttonIndex < voiceActivationCapture.length;
@@ -347,6 +464,7 @@ class _CameraScreenState extends State<CameraScreen> {
           Container(
             child: FlatButton(
               onPressed: () {
+                HapticFeedback.vibrate();
                 Navigator.of(context).pop();
               },
               child: Text(
@@ -397,6 +515,7 @@ class _CameraScreenState extends State<CameraScreen> {
               ),
               backgroundColor: Colors.white,
               onPressed: () {
+                HapticFeedback.vibrate();
                 onSwitchCamera();
               },
             )
@@ -406,84 +525,25 @@ class _CameraScreenState extends State<CameraScreen> {
     );
   }
 
-  onCapture(context) async {
-    try {
-      final p = await getTemporaryDirectory();
-      final name = DateTime.now();
-      final path = "${p.path}/$name.png";
-
-      countdownSeconds = countdownTimer;
-      const oneSec = const Duration(seconds: 1);
-      Timer.periodic(
-        oneSec,
-        (Timer timer) {
-          if (countdownSeconds == 0) {
-            setState(() {
-              timer.cancel();
-            });
-          } else {
-            setState(() {
-              countdownSeconds--;
-            });
-          }
-        },
-      );
-
-      while (countdownSeconds > 0) {
-        await Future.delayed(Duration(milliseconds: 50));
-      }
-
-      await cameraController.takePicture(path).then((value) {
-        print(path);
-        Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (context) => PreviewScreen(
-                      imgPath: path,
-                      fileName: "$name.png",
-                    )));
-      });
-    } catch (e) {
-      showCameraException(e);
-    }
-  }
-
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-    availableCameras().then((value) {
-      cameras = value;
-      if (cameras.length > 0) {
-        setState(() {
-          selectedCameraIndex = 0;
-        });
-        initCamera(cameras[selectedCameraIndex]).then((value) {});
-      } else {
-        print('No camera available');
-      }
-    }).catchError((e) {
-      print('Error : ${e.code}');
-    });
-  }
-
   Widget countdown() {
-    if (countdownSeconds == null || countdownSeconds == 0) {
+    var width = MediaQuery.of(context).size.width;
+    if (countdownSeconds == null ||
+        countdownSeconds == 0 ||
+        countdownSeconds > countdownTimer) {
       return Container();
     }
-    return new OrientationBuilder(
-      builder: (context, orientation) {
-        return Transform.rotate(
-          angle: orientation == Orientation.portrait ? pi / 2 : pi / 2,
-          child: Text(
-            '$countdownSeconds',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 390,
-            ),
-          ),
-        );
-      },
+    final List<String> accelerometer =
+        _accelerometerValues?.map((double v) => v.toStringAsFixed(1))?.toList();
+    return Transform.rotate(
+      angle: _accelerometerValues[1] > 4 ? 0 : pi / 2,
+      child: Text(
+        '$countdownSeconds',
+        textScaleFactor: 1,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: giantNumbersEnabled ? width : 100,
+        ),
+      ),
     );
   }
 
@@ -494,10 +554,6 @@ class _CameraScreenState extends State<CameraScreen> {
       body: Container(
         child: Stack(
           children: <Widget>[
-//            Expanded(
-//              flex: 1,
-//              child: _cameraPreviewWidget(),
-//            ),
             Align(
               alignment: Alignment.center,
               child: cameraPreview(),
@@ -506,24 +562,26 @@ class _CameraScreenState extends State<CameraScreen> {
               alignment: Alignment.center,
               child: countdown(),
             ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                height: 120,
-                width: double.infinity,
-                padding: EdgeInsets.all(15),
-                color: Colors.transparent,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: <Widget>[
-                    cameraToggle(),
-                    cameraControl(context),
-                    settingsControl(context),
-                    // Spacer(),
-                  ],
-                ),
-              ),
-            ),
+            takingPhoto
+                ? Container()
+                : Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Container(
+                      height: 180,
+                      width: double.infinity,
+                      padding: EdgeInsets.all(15),
+                      color: Colors.transparent,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: <Widget>[
+                          cameraToggle(),
+                          cameraControl(context),
+                          settingsControl(context),
+                          // Spacer(),
+                        ],
+                      ),
+                    ),
+                  ),
           ],
         ),
       ),

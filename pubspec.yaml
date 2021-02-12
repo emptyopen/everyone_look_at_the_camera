@@ -19,6 +19,8 @@ dependencies:
   esys_flutter_share: ^1.0.2
   path: ^1.6.4
   path_provider: ^1.6.11
+  audioplayers: ^0.17.3
+  sensors: 
 
 dev_dependencies:
   flutter_test:
@@ -35,8 +37,11 @@ flutter:
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware.
 
-  # For details regarding adding assets from package dependencies, see
-  # https://flutter.dev/assets-and-images/#from-packages
+  assets:
+    - assets/alarm-reverb.wav
+    - assets/alarm-short-b.wav
+    - assets/beep1.wav
+    - assets/beep2.wav
 
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a

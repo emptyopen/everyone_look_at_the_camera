@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/services.dart';
 
 import 'package:esys_flutter_share/esys_flutter_share.dart';
 import 'package:flutter/cupertino.dart';
@@ -18,48 +19,77 @@ class _PreviewScreenState extends State<PreviewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          automaticallyImplyLeading: true,
-        ),
-        body: Container(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Expanded(
-                flex: 2,
-                child: Image.file(
-                  File(widget.imgPath),
-                  fit: BoxFit.cover,
-                ),
+      body: Container(
+        color: Colors.black,
+        child: Column(
+          children: <Widget>[
+            Expanded(
+              child: Image.file(
+                File(widget.imgPath),
+                fit: BoxFit.contain,
               ),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  width: double.infinity,
-                  height: 60,
-                  color: Colors.black,
-                  child: Center(
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.share,
-                        color: Colors.white,
-                      ),
-                      onPressed: () {
-                        getBytes().then((bytes) {
-                          print('here now');
-                          print(widget.imgPath);
-                          print(bytes.buffer.asUint8List());
-                          Share.file('Share via', widget.fileName,
-                              bytes.buffer.asUint8List(), 'image/path');
-                        });
-                      },
+            ),
+            ButtonBar(
+              mainAxisSize: MainAxisSize.max,
+              children: [
+                SizedBox(
+                  height: 40,
+                  width: 80,
+                  child: RaisedButton(
+                    child: Icon(
+                      Icons.arrow_back,
+                      color: Colors.white,
+                      size: 30,
                     ),
+                    color: Colors.redAccent[100],
+                    onPressed: () {
+                      HapticFeedback.vibrate();
+                      Navigator.of(context).pop();
+                    },
                   ),
                 ),
-              )
-            ],
-          ),
-        ));
+                SizedBox(
+                  height: 40,
+                  width: 80,
+                  child: RaisedButton(
+                    child: Icon(
+                      Icons.file_download,
+                      color: Colors.white,
+                      size: 30,
+                    ),
+                    color: Colors.blueAccent,
+                    onPressed: () {
+                      HapticFeedback.vibrate();
+                      print('will download');
+                    },
+                  ),
+                ),
+                SizedBox(
+                  height: 40,
+                  width: 80,
+                  child: RaisedButton(
+                    child: Icon(
+                      Icons.share_sharp,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    color: Colors.greenAccent,
+                    onPressed: () {
+                      HapticFeedback.vibrate();
+                      getBytes().then((bytes) {
+                        print(widget.imgPath);
+                        Share.file('Share via', widget.fileName,
+                            bytes.buffer.asUint8List(), 'image/path');
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future getBytes() async {
