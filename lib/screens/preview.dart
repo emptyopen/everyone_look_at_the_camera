@@ -80,7 +80,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
                                   },
                                   child: Text(
                                     'Delete',
-                                    style: TextStyle(fontSize: 16),
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.red,
+                                    ),
                                   ),
                                 ),
                               ],

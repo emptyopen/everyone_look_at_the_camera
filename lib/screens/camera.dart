@@ -10,7 +10,6 @@ import 'package:sensors/sensors.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../sound_manager.dart';
-import 'package:everyone_look_at_the_camera/components/wrap_toggle_icon_buttons.dart';
 import 'package:everyone_look_at_the_camera/components/wrap_toggle_text_buttons.dart';
 import 'package:everyone_look_at_the_camera/components/lifecycle_event_handler.dart';
 
@@ -33,7 +32,21 @@ class _CameraScreenState extends State<CameraScreen>
   bool giantNumbersEnabled = true;
   List<bool> noisyCountdown = [true, false, false, false];
   String noisyCountdownMessage;
-  List<bool> weirdNoise = [true, false, false];
+  List<bool> weirdNoise = [
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+  ];
   String weirdNoiseMessage;
   List<bool> voiceActivationCapture = [true, false, false];
   List<bool> shutterNoise = [false, true, false, false, false];
@@ -72,19 +85,33 @@ class _CameraScreenState extends State<CameraScreen>
     null,
     null,
   ];
+  List<String> weirdNoiseList = [
+    'bell-jingle',
+    'boing',
+    'change-rattling',
+    'disney-chime',
+    'electric-jingle',
+    'guitar-jingle',
+    'ouch',
+    'pans-dropping',
+    'squeaky-door',
+    'synth-jingle',
+    'throat-chant',
+    'toilet',
+  ];
   Map<String, double> weirdNoiseTimeMap = {
-    'bell-jingle': 7.1,
-    'boing': 2,
-    'change-rattling': 4,
-    'disney-chime': 6,
-    'electric-jingle': 5,
-    'guitar-jingle': 6,
-    'ouch': 4,
-    'pans-dropping': 6,
-    'squeaky-door': 3,
-    'synth-jingle': 5,
-    'throat-chant': 5.1,
-    'toilet': 4,
+    'bell-jingle': 3.6,
+    'boing': 2.5,
+    'change-rattling': 4.9,
+    'disney-chime': 4,
+    'electric-jingle': 4.6,
+    'guitar-jingle': 4,
+    'ouch': 2.4,
+    'pans-dropping': 3.8,
+    'squeaky-door': 5.0,
+    'synth-jingle': 4.6,
+    'throat-chant': 6.1,
+    'toilet': 3.9,
   };
   List<double> _accelerometerValues;
   List<StreamSubscription<dynamic>> _streamSubscriptions =
@@ -122,7 +149,6 @@ class _CameraScreenState extends State<CameraScreen>
     WidgetsBinding.instance.addObserver(
       LifecycleEventHandler(
         resumeCallBack: () async => setState(() {
-          print('resuming camera');
           cameraController.initialize();
         }),
       ),
@@ -208,10 +234,23 @@ class _CameraScreenState extends State<CameraScreen>
           }
         },
       );
-
+      bool weirdNoiseStarted = false;
       while (countdownSeconds > 0) {
         // check if weird noise should be played
-        print('seconds until zero: ${DateTime.now().difference(startTime)}');
+        if (!weirdNoise[0]) {
+          double elapsedSeconds = DateTime.now()
+                  .difference(startTime.add(Duration(seconds: 1)))
+                  .inMilliseconds /
+              1000.0;
+          double remainingSeconds = countdownTimer.toDouble() - elapsedSeconds;
+          String weirdNoiseName = weirdNoiseList[weirdNoise.indexOf(true) - 1];
+          if (!weirdNoiseStarted &&
+              weirdNoiseTimeMap[weirdNoiseName] > remainingSeconds) {
+            soundManagers[0].playLocal('$weirdNoiseName.wav');
+            weirdNoiseStarted = true;
+          }
+        }
+
         await Future.delayed(Duration(milliseconds: 200));
       }
 
@@ -488,7 +527,7 @@ class _CameraScreenState extends State<CameraScreen>
                                   weirdNoise[i] = false;
                                 }
                                 String disableWeirdNoiseMessage =
-                                    'Disabling weird noise.';
+                                    'Disabled weird noise.';
                                 if (noisyCountdownMessage == null) {
                                   noisyCountdownMessage =
                                       disableWeirdNoiseMessage;
@@ -536,15 +575,23 @@ class _CameraScreenState extends State<CameraScreen>
                             )
                           : Container(),
                       SizedBox(height: 10),
-                      ToggleButtons(
-                        children: <Widget>[
-                          Icon(
-                            Icons.cancel,
-                            color: Colors.grey,
-                          ),
-                          Icon(Icons.call),
-                          Icon(Icons.cake),
+                      WrapToggleTextButtons(
+                        textList: [
+                          'None',
+                          'Bell',
+                          'Boing',
+                          'Change',
+                          'Disney',
+                          'Electric',
+                          'Guitar',
+                          'Ouch',
+                          'Pans',
+                          'Squeak',
+                          'Synth',
+                          'Mongol',
+                          'Toilet',
                         ],
+                        isSelected: weirdNoise,
                         onPressed: (int index) {
                           HapticFeedback.vibrate();
                           setState(() {
@@ -578,7 +625,7 @@ class _CameraScreenState extends State<CameraScreen>
                                   noisyCountdown[i] = false;
                                 }
                                 String disableNoisyCountdownMessage =
-                                    'Disabling noisy countdown.';
+                                    'Disabled noisy countdown.';
                                 if (weirdNoiseMessage == null) {
                                   weirdNoiseMessage =
                                       disableNoisyCountdownMessage;
@@ -592,7 +639,6 @@ class _CameraScreenState extends State<CameraScreen>
                             }
                           });
                         },
-                        isSelected: weirdNoise,
                       ),
                     ],
                   ),
@@ -883,7 +929,7 @@ class _CameraScreenState extends State<CameraScreen>
               child: flashBox(),
             ),
             Positioned(
-              child: settingsPreview(),
+              child: takingPhoto ? Container() : settingsPreview(),
               bottom: portraitAngle ? 140 : 160,
               right: 20,
             ),

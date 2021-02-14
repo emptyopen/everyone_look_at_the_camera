@@ -7,8 +7,6 @@ import 'package:flutter/material.dart';
 // voice recognition, start timer
 // make noises consistent (buffer/audio/cache)
 // funny image pop up?
-// switching to app, camera is frozen
-// bool saved state in preview, confirm on back that photo will be deleted
 // multiple photos in succession, preview needs to have scrolling views of the photos
 
 void main() {
