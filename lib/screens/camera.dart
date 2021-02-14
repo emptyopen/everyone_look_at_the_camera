@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/services.dart';
 import 'package:sensors/sensors.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../sound_manager.dart';
 
@@ -15,24 +16,57 @@ class CameraScreen extends StatefulWidget {
   _CameraScreenState createState() => _CameraScreenState();
 }
 
-class _CameraScreenState extends State<CameraScreen> {
+class _CameraScreenState extends State<CameraScreen>
+    with SingleTickerProviderStateMixin {
   CameraController cameraController;
   List cameras;
   int selectedCameraIndex;
   String imgPath;
   bool takingPhoto = false;
+  bool portraitAngle = false;
   int countdownTimer = 3;
   int countdownSeconds;
   bool giantNumbersEnabled = true;
-  List<bool> noisyCountdown = [true, false, false];
+  List<bool> noisyCountdown = [true, false, false, false];
   List<bool> lastSecondNoise = [true, false, false];
   List<bool> voiceActivationCapture = [true, false, false];
-  SoundManager soundManager1 = new SoundManager();
-  SoundManager soundManager2 = new SoundManager();
+  List<bool> shutterNoise = [true, false, false];
+  Animation<int> flashAnimation;
+  AnimationController flashAnimationController;
+  List<SoundManager> soundManagers = [
+    SoundManager(),
+    SoundManager(),
+    SoundManager(),
+    SoundManager(),
+    SoundManager(),
+    SoundManager(),
+  ];
+  List<String> noisyCountdownBeeps = [
+    'beep1.wav',
+    'beep1.wav',
+    'beep1.wav',
+    'beep1.wav',
+    'beep1.wav',
+    'beep2.wav',
+  ];
+  List<String> noisyCountdownAlarms = [
+    'alarm-short-b.wav',
+    'alarm-short-b.wav',
+    'alarm-short-b.wav',
+    'alarm-short-b.wav',
+    'alarm-short-b.wav',
+    'factory-alarm.wav',
+  ];
+  List<String> noisyCountdownOrchestra = [
+    'plucked1.wav',
+    'plucked2.wav',
+    'plucked1.wav',
+    'string-ending.wav',
+    null,
+    null,
+  ];
 
   List<double> _accelerometerValues;
-  List<double> _userAccelerometerValues;
-  List<double> _gyroscopeValues;
   List<StreamSubscription<dynamic>> _streamSubscriptions =
       <StreamSubscription<dynamic>>[];
 
@@ -52,24 +86,18 @@ class _CameraScreenState extends State<CameraScreen> {
     }).catchError((e) {
       print('Error : ${e.code}');
     });
-
+    // acceleromter values
     _streamSubscriptions
         .add(accelerometerEvents.listen((AccelerometerEvent event) {
       setState(() {
         _accelerometerValues = <double>[event.x, event.y, event.z];
       });
     }));
-    _streamSubscriptions.add(gyroscopeEvents.listen((GyroscopeEvent event) {
-      setState(() {
-        _gyroscopeValues = <double>[event.x, event.y, event.z];
-      });
-    }));
-    _streamSubscriptions
-        .add(userAccelerometerEvents.listen((UserAccelerometerEvent event) {
-      setState(() {
-        _userAccelerometerValues = <double>[event.x, event.y, event.z];
-      });
-    }));
+    // flash
+    flashAnimationController = AnimationController(
+        duration: const Duration(milliseconds: 200), vsync: this);
+    flashAnimation =
+        IntTween(begin: 0, end: 255).animate(flashAnimationController);
   }
 
   Future initCamera(CameraDescription cameraDescription) async {
@@ -111,6 +139,17 @@ class _CameraScreenState extends State<CameraScreen> {
         takingPhoto = true;
       });
 
+      List<String> noisyCountdownSelection;
+      if (noisyCountdown[0]) {
+        noisyCountdownSelection = [null, null, null, null, null, null];
+      } else if (noisyCountdown[1]) {
+        noisyCountdownSelection = noisyCountdownBeeps;
+      } else if (noisyCountdown[2]) {
+        noisyCountdownSelection = noisyCountdownAlarms;
+      } else if (noisyCountdown[3]) {
+        noisyCountdownSelection = noisyCountdownOrchestra;
+      }
+
       countdownSeconds = countdownTimer + 1;
       const oneSec = const Duration(seconds: 1);
       Timer.periodic(
@@ -124,15 +163,11 @@ class _CameraScreenState extends State<CameraScreen> {
             setState(() {
               countdownSeconds--;
             });
-            if (countdownSeconds > 0 && countdownSeconds <= 5) {
-              if (countdownSeconds % 2 == 0) {
-                soundManager1.playLocal('beep1.wav');
-              } else {
-                soundManager2.playLocal('beep1.wav');
+            if (countdownSeconds <= 5) {
+              if (noisyCountdownSelection[5 - countdownSeconds] != null) {
+                soundManagers[5 - countdownSeconds]
+                    .playLocal(noisyCountdownSelection[5 - countdownSeconds]);
               }
-            } else {
-              // play final sound
-              soundManager1.playLocal('beep2.wav');
             }
           }
         },
@@ -141,6 +176,8 @@ class _CameraScreenState extends State<CameraScreen> {
       while (countdownSeconds > 0) {
         await Future.delayed(Duration(milliseconds: 50));
       }
+
+      flashAnimationController.forward();
 
       await cameraController.takePicture(path).then((value) {
         print(path);
@@ -151,6 +188,7 @@ class _CameraScreenState extends State<CameraScreen> {
                       imgPath: path,
                       fileName: "$name.png",
                     )));
+        flashAnimationController.reverse();
       });
     } catch (e) {
       showCameraException(e);
@@ -244,7 +282,7 @@ class _CameraScreenState extends State<CameraScreen> {
         backgroundColor: Colors.white.withAlpha(220),
         contentPadding: EdgeInsets.fromLTRB(30, 0, 30, 0),
         content: Container(
-          height: 500,
+          height: 520,
           width: width * 0.95,
           child: ListView(
             children: <Widget>[
@@ -293,7 +331,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   ],
                 ),
               ),
-              SizedBox(height: 20),
+              SizedBox(height: 10),
               Container(
                 decoration: BoxDecoration(
                   border: Border.all(
@@ -316,7 +354,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   ],
                 ),
               ),
-              SizedBox(height: 20),
+              SizedBox(height: 10),
               Container(
                 decoration: BoxDecoration(
                   border: Border.all(
@@ -336,8 +374,9 @@ class _CameraScreenState extends State<CameraScreen> {
                             Icons.cancel,
                             color: Colors.grey,
                           ),
-                          Icon(Icons.format_list_numbered),
-                          Icon(Icons.cake),
+                          Icon(MdiIcons.pulse),
+                          Icon(MdiIcons.bomb),
+                          Icon(MdiIcons.violin),
                         ],
                         onPressed: (int index) {
                           HapticFeedback.vibrate();
@@ -359,7 +398,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   ),
                 ),
               ),
-              SizedBox(height: 20),
+              SizedBox(height: 10),
               Container(
                 decoration: BoxDecoration(
                   border: Border.all(
@@ -402,7 +441,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   ),
                 ),
               ),
-              SizedBox(height: 20),
+              SizedBox(height: 10),
               Container(
                 decoration: BoxDecoration(
                   border: Border.all(
@@ -457,6 +496,61 @@ class _CameraScreenState extends State<CameraScreen> {
                   ),
                 ),
               ),
+              SizedBox(height: 10),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.grey,
+                  ),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(10),
+                  child: Column(
+                    children: [
+                      Text('Shutter noise'),
+                      SizedBox(height: 10),
+                      ToggleButtons(
+                        children: <Widget>[
+                          Padding(
+                            padding: EdgeInsets.all(5),
+                            child: Text(
+                              'None',
+                              style: TextStyle(
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.all(5),
+                            child: Text('"modern"'),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.all(5),
+                            child: Text('"retro"'),
+                          ),
+                        ],
+                        constraints: BoxConstraints.loose(Size.fromRadius(150)),
+                        onPressed: (int index) {
+                          HapticFeedback.vibrate();
+                          setState(() {
+                            for (int buttonIndex = 0;
+                                buttonIndex < shutterNoise.length;
+                                buttonIndex++) {
+                              if (buttonIndex == index) {
+                                shutterNoise[buttonIndex] = true;
+                              } else {
+                                shutterNoise[buttonIndex] = false;
+                              }
+                            }
+                          });
+                        },
+                        isSelected: shutterNoise,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -476,6 +570,17 @@ class _CameraScreenState extends State<CameraScreen> {
         ],
       );
     });
+  }
+
+  Widget flashBox() {
+    return Container(
+      height: MediaQuery.of(context).size.height,
+      width: MediaQuery.of(context).size.width,
+      decoration: BoxDecoration(
+        color: Colors.white.withAlpha(flashAnimation.value),
+      ),
+      child: Text('${flashAnimation.value}'),
+    );
   }
 
   Widget cameraToggle() {
@@ -527,21 +632,33 @@ class _CameraScreenState extends State<CameraScreen> {
 
   Widget countdown() {
     var width = MediaQuery.of(context).size.width;
+    if (_accelerometerValues == null) {
+      portraitAngle = true;
+    } else {
+      if (_accelerometerValues[1] > 6 && !portraitAngle) {
+        portraitAngle = true;
+      }
+      if (_accelerometerValues[1] < 4.5 && portraitAngle) {
+        portraitAngle = false;
+      }
+    }
     if (countdownSeconds == null ||
         countdownSeconds == 0 ||
         countdownSeconds > countdownTimer) {
       return Container();
     }
-    final List<String> accelerometer =
-        _accelerometerValues?.map((double v) => v.toStringAsFixed(1))?.toList();
     return Transform.rotate(
-      angle: _accelerometerValues[1] > 4 ? 0 : pi / 2,
+      angle: portraitAngle ? 0 : pi / 2,
       child: Text(
         '$countdownSeconds',
         textScaleFactor: 1,
         style: TextStyle(
           color: Colors.white,
-          fontSize: giantNumbersEnabled ? width : 100,
+          fontSize: giantNumbersEnabled
+              ? countdownSeconds > 9
+                  ? width - 100
+                  : width
+              : 100,
         ),
       ),
     );
@@ -561,6 +678,10 @@ class _CameraScreenState extends State<CameraScreen> {
             Align(
               alignment: Alignment.center,
               child: countdown(),
+            ),
+            Align(
+              alignment: Alignment.center,
+              child: flashBox(),
             ),
             takingPhoto
                 ? Container()

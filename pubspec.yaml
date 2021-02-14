@@ -21,6 +21,7 @@ dependencies:
   path_provider: ^1.6.11
   audioplayers: ^0.17.3
   sensors: 
+  material_design_icons_flutter:
 
 dev_dependencies:
   flutter_test:
@@ -38,10 +39,7 @@ flutter:
   # https://flutter.dev/assets-and-images/#resolution-aware.
 
   assets:
-    - assets/alarm-reverb.wav
-    - assets/alarm-short-b.wav
-    - assets/beep1.wav
-    - assets/beep2.wav
+    - assets/
 
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a
