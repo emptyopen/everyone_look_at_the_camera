@@ -3,15 +3,13 @@ import 'package:flutter/material.dart';
 
 // TODO:
 // last second sounds
-// voice recognition, start timer
-// consistent timing of sounds
-// download a pic locally
-// make noises consistent (buffer/audio/cache)
-// exclusive choice of noisy countdown vs last second sound
 // last second sound should have a way of getting length of sound, make minimum timer based on it
-// need minimum 5 seconds for noisy countdown
+// voice recognition, start timer
+// make noises consistent (buffer/audio/cache)
 // funny image pop up?
 // switching to app, camera is frozen
+// bool saved state in preview, confirm on back that photo will be deleted
+// multiple photos in succession, preview needs to have scrolling views of the photos
 
 void main() {
   runApp(MyApp());

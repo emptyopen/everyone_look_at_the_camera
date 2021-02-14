@@ -12,6 +12,7 @@ import 'package:material_design_icons_flutter/material_design_icons_flutter.dart
 import '../sound_manager.dart';
 import 'package:everyone_look_at_the_camera/components/wrap_toggle_icon_buttons.dart';
 import 'package:everyone_look_at_the_camera/components/wrap_toggle_text_buttons.dart';
+import 'package:everyone_look_at_the_camera/components/lifecycle_event_handler.dart';
 
 class CameraScreen extends StatefulWidget {
   @override
@@ -27,6 +28,7 @@ class _CameraScreenState extends State<CameraScreen>
   bool takingPhoto = false;
   bool portraitAngle = false;
   int countdownTimer = 3;
+  String countdownMessage;
   int countdownSeconds;
   bool giantNumbersEnabled = true;
   List<bool> noisyCountdown = [true, false, false, false];
@@ -71,7 +73,18 @@ class _CameraScreenState extends State<CameraScreen>
     null,
   ];
   Map<String, double> weirdNoiseTimeMap = {
-    'throatSinging': 5.1,
+    'bell-jingle': 7.1,
+    'boing': 2,
+    'change-rattling': 4,
+    'disney-chime': 6,
+    'electric-jingle': 5,
+    'guitar-jingle': 6,
+    'ouch': 4,
+    'pans-dropping': 6,
+    'squeaky-door': 3,
+    'synth-jingle': 5,
+    'throat-chant': 5.1,
+    'toilet': 4,
   };
   List<double> _accelerometerValues;
   List<StreamSubscription<dynamic>> _streamSubscriptions =
@@ -105,6 +118,15 @@ class _CameraScreenState extends State<CameraScreen>
         duration: const Duration(milliseconds: 200), vsync: this);
     flashAnimation =
         IntTween(begin: 0, end: 255).animate(flashAnimationController);
+    // resume camera
+    WidgetsBinding.instance.addObserver(
+      LifecycleEventHandler(
+        resumeCallBack: () async => setState(() {
+          print('resuming camera');
+          cameraController.initialize();
+        }),
+      ),
+    );
   }
 
   Future initCamera(CameraDescription cameraDescription) async {
@@ -139,7 +161,12 @@ class _CameraScreenState extends State<CameraScreen>
   onCapture(context) async {
     try {
       final p = await getTemporaryDirectory();
-      final name = DateTime.now();
+      final name = 'ELATC-' +
+          DateTime.now()
+              .toString()
+              .replaceAll(' ', 'T')
+              .replaceAll(':', '-')
+              .replaceAll('.', '-');
       final path = "${p.path}/$name.png";
 
       setState(() {
@@ -156,6 +183,8 @@ class _CameraScreenState extends State<CameraScreen>
       } else if (noisyCountdown[3]) {
         noisyCountdownSelection = noisyCountdownOrchestra;
       }
+
+      DateTime startTime = DateTime.now();
 
       countdownSeconds = countdownTimer + 1;
       const oneSec = const Duration(seconds: 1);
@@ -181,7 +210,9 @@ class _CameraScreenState extends State<CameraScreen>
       );
 
       while (countdownSeconds > 0) {
-        await Future.delayed(Duration(milliseconds: 50));
+        // check if weird noise should be played
+        print('seconds until zero: ${DateTime.now().difference(startTime)}');
+        await Future.delayed(Duration(milliseconds: 200));
       }
 
       flashAnimationController.forward();
@@ -292,6 +323,9 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   clearMessagesExcept(String section) {
+    if (section != 'countdown') {
+      countdownMessage = null;
+    }
     if (section != 'noisyCountdown') {
       noisyCountdownMessage = null;
     }
@@ -338,6 +372,10 @@ class _CameraScreenState extends State<CameraScreen>
                         HapticFeedback.vibrate();
                         setState(() {
                           countdownTimer = newValue;
+                          // clear messages in other sections
+                          clearMessagesExcept('countdown');
+                          // TODO: if countdown timer > 5, disable noisyCountdown
+                          // if countdown timer > x, disable weird noise
                         });
                       },
                       items: <int>[0, 3, 5, 10, 15]
@@ -574,27 +612,13 @@ class _CameraScreenState extends State<CameraScreen>
                     children: [
                       Text('Voice activation capture'),
                       SizedBox(height: 10),
-                      ToggleButtons(
-                        children: <Widget>[
-                          Padding(
-                            padding: EdgeInsets.all(5),
-                            child: Text(
-                              'None',
-                              style: TextStyle(
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.all(5),
-                            child: Text('"capture"'),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.all(5),
-                            child: Text('"cheese"'),
-                          ),
+                      WrapToggleTextButtons(
+                        textList: [
+                          'None',
+                          '"cherry tomatoes"',
+                          '"capture"',
                         ],
-                        constraints: BoxConstraints.loose(Size.fromRadius(150)),
+                        isSelected: voiceActivationCapture,
                         onPressed: (int index) {
                           HapticFeedback.vibrate();
                           setState(() {
@@ -609,7 +633,6 @@ class _CameraScreenState extends State<CameraScreen>
                             }
                           });
                         },
-                        isSelected: voiceActivationCapture,
                       ),
                     ],
                   ),
@@ -665,6 +688,7 @@ class _CameraScreenState extends State<CameraScreen>
             child: FlatButton(
               onPressed: () {
                 HapticFeedback.vibrate();
+                clearMessagesExcept('');
                 Navigator.of(context).pop();
               },
               child: Text(
@@ -770,6 +794,75 @@ class _CameraScreenState extends State<CameraScreen>
     );
   }
 
+  addFieldValue(fields, values, field, value) {
+    fields.add(Container(
+      height: 20,
+      child: Center(
+        child: Text(
+          '$field',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    ));
+    values.add(Container(
+      height: 20,
+      child: Center(
+        child: Text(
+          '$value',
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    ));
+  }
+
+  settingsPreview() {
+    List<Widget> fields = [];
+    List<Widget> values = [];
+    addFieldValue(fields, values, 'COUNTDOWN', countdownTimer);
+    if (giantNumbersEnabled) {
+      addFieldValue(fields, values, 'GIANT', 'ON');
+    }
+    if (!noisyCountdown[0]) {
+      addFieldValue(fields, values, 'NOISY', 'ON');
+    }
+    if (!weirdNoise[0]) {
+      addFieldValue(fields, values, 'WEIRD', 'ON');
+    }
+    if (!voiceActivationCapture[0]) {
+      addFieldValue(fields, values, 'VOICE', 'ON');
+    }
+    return Transform.rotate(
+      angle: portraitAngle ? 0 : pi / 2,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.white),
+          borderRadius: BorderRadius.circular(5),
+        ),
+        padding: EdgeInsets.all(10),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: fields,
+            ),
+            SizedBox(width: 15),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: values,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -788,6 +881,11 @@ class _CameraScreenState extends State<CameraScreen>
             Align(
               alignment: Alignment.center,
               child: flashBox(),
+            ),
+            Positioned(
+              child: settingsPreview(),
+              bottom: portraitAngle ? 140 : 160,
+              right: 20,
             ),
             takingPhoto
                 ? Container()

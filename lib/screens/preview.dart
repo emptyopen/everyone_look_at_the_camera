@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
+import 'package:gallery_saver/gallery_saver.dart';
 
 import 'package:esys_flutter_share/esys_flutter_share.dart';
 import 'package:flutter/cupertino.dart';
@@ -16,8 +17,11 @@ class PreviewScreen extends StatefulWidget {
 }
 
 class _PreviewScreenState extends State<PreviewScreen> {
+  bool saved = false;
+
   @override
   Widget build(BuildContext context) {
+    var width = MediaQuery.of(context).size.width;
     return Scaffold(
       body: Container(
         color: Colors.black,
@@ -44,7 +48,48 @@ class _PreviewScreenState extends State<PreviewScreen> {
                     color: Colors.redAccent[100],
                     onPressed: () {
                       HapticFeedback.vibrate();
-                      Navigator.of(context).pop();
+                      if (!saved) {
+                        showDialog<Null>(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: Text('Delete?'),
+                              backgroundColor: Colors.white.withAlpha(220),
+                              contentPadding: EdgeInsets.fromLTRB(30, 0, 30, 0),
+                              content: Container(
+                                width: width * 0.95,
+                                child:
+                                    Text('\nGoing back will delete the photo.'),
+                              ),
+                              actions: <Widget>[
+                                FlatButton(
+                                  onPressed: () {
+                                    HapticFeedback.vibrate();
+                                    Navigator.of(context).pop();
+                                  },
+                                  child: Text(
+                                    'Cancel',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                ),
+                                FlatButton(
+                                  onPressed: () {
+                                    HapticFeedback.vibrate();
+                                    Navigator.of(context).pop();
+                                    Navigator.of(context).pop();
+                                  },
+                                  child: Text(
+                                    'Delete',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      } else {
+                        Navigator.of(context).pop();
+                      }
                     },
                   ),
                 ),
@@ -52,16 +97,23 @@ class _PreviewScreenState extends State<PreviewScreen> {
                   height: 40,
                   width: 80,
                   child: RaisedButton(
-                    child: Icon(
-                      Icons.file_download,
-                      color: Colors.white,
-                      size: 30,
-                    ),
-                    color: Colors.blueAccent,
-                    onPressed: () {
-                      HapticFeedback.vibrate();
-                      print('will download');
-                    },
+                    child: saved
+                        ? Text('SAVED')
+                        : Icon(
+                            Icons.file_download,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                    color: saved ? Colors.grey : Colors.blueAccent,
+                    onPressed: saved
+                        ? () {}
+                        : () {
+                            HapticFeedback.vibrate();
+                            GallerySaver.saveImage(widget.imgPath);
+                            setState(() {
+                              saved = true;
+                            });
+                          },
                   ),
                 ),
                 SizedBox(
@@ -77,7 +129,6 @@ class _PreviewScreenState extends State<PreviewScreen> {
                     onPressed: () {
                       HapticFeedback.vibrate();
                       getBytes().then((bytes) {
-                        print(widget.imgPath);
                         Share.file('Share via', widget.fileName,
                             bytes.buffer.asUint8List(), 'image/path');
                       });
