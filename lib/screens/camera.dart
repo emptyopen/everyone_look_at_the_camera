@@ -10,6 +10,8 @@ import 'package:sensors/sensors.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../sound_manager.dart';
+import 'package:everyone_look_at_the_camera/components/wrap_toggle_icon_buttons.dart';
+import 'package:everyone_look_at_the_camera/components/wrap_toggle_text_buttons.dart';
 
 class CameraScreen extends StatefulWidget {
   @override
@@ -30,7 +32,7 @@ class _CameraScreenState extends State<CameraScreen>
   List<bool> noisyCountdown = [true, false, false, false];
   List<bool> lastSecondNoise = [true, false, false];
   List<bool> voiceActivationCapture = [true, false, false];
-  List<bool> shutterNoise = [true, false, false];
+  List<bool> shutterNoise = [false, true, false, false, false];
   Animation<int> flashAnimation;
   AnimationController flashAnimationController;
   List<SoundManager> soundManagers = [
@@ -41,6 +43,7 @@ class _CameraScreenState extends State<CameraScreen>
     SoundManager(),
     SoundManager(),
   ];
+  SoundManager shutterSoundManager = SoundManager();
   List<String> noisyCountdownBeeps = [
     'beep1.wav',
     'beep1.wav',
@@ -179,6 +182,16 @@ class _CameraScreenState extends State<CameraScreen>
 
       flashAnimationController.forward();
 
+      if (shutterNoise[1]) {
+        shutterSoundManager.playLocal('camera-dslr.wav');
+      } else if (shutterNoise[2]) {
+        shutterSoundManager.playLocal('camera-modern.wav');
+      } else if (shutterNoise[3]) {
+        shutterSoundManager.playLocal('camera-minolta.wav');
+      } else if (shutterNoise[4]) {
+        shutterSoundManager.playLocal('camera-polaroid.wav');
+      }
+
       await cameraController.takePicture(path).then((value) {
         print(path);
         Navigator.push(
@@ -282,7 +295,7 @@ class _CameraScreenState extends State<CameraScreen>
         backgroundColor: Colors.white.withAlpha(220),
         contentPadding: EdgeInsets.fromLTRB(30, 0, 30, 0),
         content: Container(
-          height: 520,
+          height: 320,
           width: width * 0.95,
           child: ListView(
             children: <Widget>[
@@ -301,13 +314,12 @@ class _CameraScreenState extends State<CameraScreen>
                     SizedBox(width: 10),
                     DropdownButton<int>(
                       value: countdownTimer,
-                      // icon: Icon(Icons.arrow_downward),
                       iconSize: 24,
                       elevation: 16,
-                      style: TextStyle(color: Colors.deepPurple),
+                      style: TextStyle(color: Theme.of(context).accentColor),
                       underline: Container(
                         height: 2,
-                        color: Colors.deepPurpleAccent,
+                        color: Theme.of(context).accentColor,
                       ),
                       onChanged: (int newValue) {
                         HapticFeedback.vibrate();
@@ -380,6 +392,8 @@ class _CameraScreenState extends State<CameraScreen>
                         ],
                         onPressed: (int index) {
                           HapticFeedback.vibrate();
+                          // if selected, ensure countdown timer is at least 5
+                          // if less than 5, set to 5 and set message
                           setState(() {
                             for (int buttonIndex = 0;
                                 buttonIndex < noisyCountdown.length;
@@ -510,27 +524,15 @@ class _CameraScreenState extends State<CameraScreen>
                     children: [
                       Text('Shutter noise'),
                       SizedBox(height: 10),
-                      ToggleButtons(
-                        children: <Widget>[
-                          Padding(
-                            padding: EdgeInsets.all(5),
-                            child: Text(
-                              'None',
-                              style: TextStyle(
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.all(5),
-                            child: Text('"modern"'),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.all(5),
-                            child: Text('"retro"'),
-                          ),
+                      WrapToggleTextButtons(
+                        textList: [
+                          'None',
+                          '"dslr"',
+                          '"modern"',
+                          '"minolta"',
+                          '"polaroid"',
                         ],
-                        constraints: BoxConstraints.loose(Size.fromRadius(150)),
+                        isSelected: shutterNoise,
                         onPressed: (int index) {
                           HapticFeedback.vibrate();
                           setState(() {
@@ -545,7 +547,6 @@ class _CameraScreenState extends State<CameraScreen>
                             }
                           });
                         },
-                        isSelected: shutterNoise,
                       ),
                     ],
                   ),
