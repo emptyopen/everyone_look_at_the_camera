@@ -30,7 +30,9 @@ class _CameraScreenState extends State<CameraScreen>
   int countdownSeconds;
   bool giantNumbersEnabled = true;
   List<bool> noisyCountdown = [true, false, false, false];
-  List<bool> lastSecondNoise = [true, false, false];
+  String noisyCountdownMessage;
+  List<bool> weirdNoise = [true, false, false];
+  String weirdNoiseMessage;
   List<bool> voiceActivationCapture = [true, false, false];
   List<bool> shutterNoise = [false, true, false, false, false];
   Animation<int> flashAnimation;
@@ -68,7 +70,9 @@ class _CameraScreenState extends State<CameraScreen>
     null,
     null,
   ];
-
+  Map<String, double> weirdNoiseTimeMap = {
+    'throatSinging': 5.1,
+  };
   List<double> _accelerometerValues;
   List<StreamSubscription<dynamic>> _streamSubscriptions =
       <StreamSubscription<dynamic>>[];
@@ -287,6 +291,15 @@ class _CameraScreenState extends State<CameraScreen>
     );
   }
 
+  clearMessagesExcept(String section) {
+    if (section != 'noisyCountdown') {
+      noisyCountdownMessage = null;
+    }
+    if (section != 'weirdNoise') {
+      weirdNoiseMessage = null;
+    }
+  }
+
   Widget settingsDialog() {
     var width = MediaQuery.of(context).size.width;
     return StatefulBuilder(builder: (context, setState) {
@@ -379,6 +392,20 @@ class _CameraScreenState extends State<CameraScreen>
                   child: Column(
                     children: [
                       Text('Noisy countdown'),
+                      noisyCountdownMessage != null
+                          ? Column(
+                              children: [
+                                SizedBox(height: 5),
+                                Text(
+                                  noisyCountdownMessage,
+                                  style: TextStyle(
+                                    color: Colors.red[600],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Container(),
                       SizedBox(height: 10),
                       ToggleButtons(
                         children: <Widget>[
@@ -392,8 +419,6 @@ class _CameraScreenState extends State<CameraScreen>
                         ],
                         onPressed: (int index) {
                           HapticFeedback.vibrate();
-                          // if selected, ensure countdown timer is at least 5
-                          // if less than 5, set to 5 and set message
                           setState(() {
                             for (int buttonIndex = 0;
                                 buttonIndex < noisyCountdown.length;
@@ -403,6 +428,39 @@ class _CameraScreenState extends State<CameraScreen>
                               } else {
                                 noisyCountdown[buttonIndex] = false;
                               }
+                            }
+                            // clear messages in other sections
+                            clearMessagesExcept('noisyCountdown');
+                            // if selected
+                            if (!noisyCountdown[0]) {
+                              // ensure countdown timer is at least 5
+                              // if less than 5, set to 5 and set message
+                              if (countdownTimer < 5) {
+                                countdownTimer = 5;
+                                noisyCountdownMessage =
+                                    'Minimum timer set to 5.';
+                              } else {
+                                noisyCountdownMessage = null;
+                              }
+                              // ensure weird noise is not enabled
+                              // if enabled, disable and set message
+                              if (!weirdNoise[0]) {
+                                weirdNoise[0] = true;
+                                for (int i = 1; i < weirdNoise.length; i++) {
+                                  weirdNoise[i] = false;
+                                }
+                                String disableWeirdNoiseMessage =
+                                    'Disabling weird noise.';
+                                if (noisyCountdownMessage == null) {
+                                  noisyCountdownMessage =
+                                      disableWeirdNoiseMessage;
+                                } else {
+                                  noisyCountdownMessage +=
+                                      '\n' + disableWeirdNoiseMessage;
+                                }
+                              }
+                            } else {
+                              noisyCountdownMessage = null;
                             }
                           });
                         },
@@ -424,7 +482,21 @@ class _CameraScreenState extends State<CameraScreen>
                   padding: EdgeInsets.all(10),
                   child: Column(
                     children: [
-                      Text('Last-second noise'),
+                      Text('Weird noise'),
+                      weirdNoiseMessage != null
+                          ? Column(
+                              children: [
+                                SizedBox(height: 5),
+                                Text(
+                                  weirdNoiseMessage,
+                                  style: TextStyle(
+                                    color: Colors.red[600],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Container(),
                       SizedBox(height: 10),
                       ToggleButtons(
                         children: <Widget>[
@@ -439,17 +511,50 @@ class _CameraScreenState extends State<CameraScreen>
                           HapticFeedback.vibrate();
                           setState(() {
                             for (int buttonIndex = 0;
-                                buttonIndex < lastSecondNoise.length;
+                                buttonIndex < weirdNoise.length;
                                 buttonIndex++) {
                               if (buttonIndex == index) {
-                                lastSecondNoise[buttonIndex] = true;
+                                weirdNoise[buttonIndex] = true;
                               } else {
-                                lastSecondNoise[buttonIndex] = false;
+                                weirdNoise[buttonIndex] = false;
                               }
+                            }
+                            // clear messages in other sections
+                            clearMessagesExcept('weirdNoise');
+                            // if selected
+                            if (!weirdNoise[0]) {
+                              // TODO: ensure countdown timer is at mapped duration
+                              if (countdownTimer < 5) {
+                                countdownTimer = 5;
+                                weirdNoiseMessage = 'Minimum timer set to 5.';
+                              } else {
+                                weirdNoiseMessage = null;
+                              }
+                              // ensure noisy countdown is not enabled
+                              // if enabled, disable and set message
+                              if (!noisyCountdown[0]) {
+                                noisyCountdown[0] = true;
+                                for (int i = 1;
+                                    i < noisyCountdown.length;
+                                    i++) {
+                                  noisyCountdown[i] = false;
+                                }
+                                String disableNoisyCountdownMessage =
+                                    'Disabling noisy countdown.';
+                                if (weirdNoiseMessage == null) {
+                                  weirdNoiseMessage =
+                                      disableNoisyCountdownMessage;
+                                } else {
+                                  weirdNoiseMessage +=
+                                      '\n' + disableNoisyCountdownMessage;
+                                }
+                              }
+                            } else {
+                              weirdNoiseMessage = null;
                             }
                           });
                         },
-                        isSelected: lastSecondNoise,
+                        isSelected: weirdNoise,
                       ),
                     ],
                   ),
