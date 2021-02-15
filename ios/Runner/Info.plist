@@ -47,5 +47,7 @@
 	<string>Can I use the mic please?</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Can I save photos please?</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>CAn I use speech recognition?</string>
 </dict>
 </plist>

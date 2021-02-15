@@ -8,6 +8,7 @@ import 'dart:math';
 import 'package:flutter/services.dart';
 import 'package:sensors/sensors.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 
 import '../sound_manager.dart';
 import 'package:everyone_look_at_the_camera/components/wrap_toggle_text_buttons.dart';
@@ -117,6 +118,8 @@ class _CameraScreenState extends State<CameraScreen>
   List<double> _accelerometerValues;
   List<StreamSubscription<dynamic>> _streamSubscriptions =
       <StreamSubscription<dynamic>>[];
+  SpeechToText speech = SpeechToText();
+  String transcription = '';
 
   @override
   void initState() {
@@ -379,6 +382,74 @@ class _CameraScreenState extends State<CameraScreen>
     for (int i = 1; i < list.length; i++) {
       list[i] = false;
     }
+  }
+
+  statusListener(status) {
+    print('listening status: $status');
+  }
+
+  errorListener(error) {
+    print('listening error: $error');
+  }
+
+  resultListener(result) {
+    setState(() {
+      transcription = result.recognizedWords;
+      if (result.recognizedWords.last == 'strawberry') {
+        speech.stop();
+      }
+      if (result.finalResult) {
+        print('listening complete');
+        // failed to find
+      }
+    });
+  }
+
+  recognizeSpeech() async {
+    bool available = await speech.initialize(
+        onStatus: statusListener, onError: errorListener);
+    if (available) {
+      setState(() {
+        transcription = '';
+      });
+      speech.listen(
+        onResult: resultListener,
+        // --- this doesn't seem to be working
+        --
+        listenFor: Duration(seconds: 30),
+      );
+    } else {
+      print("The user has denied the use of speech recognition.");
+    }
+  }
+
+  voiceRecognition() {
+    List words = transcription.split(' ');
+    String partialTranscription =
+        words.sublist(max(0, words.length - 3), words.length).join(' ');
+    // String partialTranscription = 'lol';
+    return Container(
+      height: 200,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('voice recognition'),
+          FlatButton(
+              onPressed: () {
+                recognizeSpeech();
+              },
+              child: Text('start')),
+          Text(
+            partialTranscription.toUpperCase(),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 30,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget settingsDialog() {
@@ -974,6 +1045,10 @@ class _CameraScreenState extends State<CameraScreen>
               child: takingPhoto ? Container() : settingsPreview(),
               bottom: portraitAngle ? 140 : 160,
               right: 20,
+            ),
+            Align(
+              alignment: Alignment.center,
+              child: voiceRecognition(),
             ),
             takingPhoto
                 ? Container()
