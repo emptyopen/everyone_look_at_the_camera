@@ -2,19 +2,18 @@ import 'package:everyone_look_at_the_camera/screens/camera.dart';
 import 'package:flutter/material.dart';
 
 // TODO:
-// last second sounds
-// last second sound should have a way of getting length of sound, make minimum timer based on it
+// make app icon
+// publish
 // voice recognition, start timer
 // make noises consistent (buffer/audio/cache)
-// funny image pop up?
-// multiple photos in succession, preview needs to have scrolling views of the photos
+// BIG: multiple photos in succession, preview needs to have scrolling views of the photos
+// possible: funny image pop up?
 
 void main() {
   runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

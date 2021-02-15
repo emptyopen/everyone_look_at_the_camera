@@ -26,6 +26,7 @@ class _CameraScreenState extends State<CameraScreen>
   String imgPath;
   bool takingPhoto = false;
   bool portraitAngle = false;
+  List<int> countdownChoices = [0, 3, 5, 7, 10, 15];
   int countdownTimer = 3;
   String countdownMessage;
   int countdownSeconds;
@@ -373,6 +374,13 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
+  setToNone(list) {
+    list[0] = true;
+    for (int i = 1; i < list.length; i++) {
+      list[i] = false;
+    }
+  }
+
   Widget settingsDialog() {
     var width = MediaQuery.of(context).size.width;
     return StatefulBuilder(builder: (context, setState) {
@@ -393,43 +401,73 @@ class _CameraScreenState extends State<CameraScreen>
                   ),
                   borderRadius: BorderRadius.circular(5),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                child: Column(
                   children: [
-                    Text('Countdown timer'),
-                    SizedBox(width: 10),
-                    DropdownButton<int>(
-                      value: countdownTimer,
-                      iconSize: 24,
-                      elevation: 16,
-                      style: TextStyle(color: Theme.of(context).accentColor),
-                      underline: Container(
-                        height: 2,
-                        color: Theme.of(context).accentColor,
-                      ),
-                      onChanged: (int newValue) {
-                        HapticFeedback.vibrate();
-                        setState(() {
-                          countdownTimer = newValue;
-                          // clear messages in other sections
-                          clearMessagesExcept('countdown');
-                          // TODO: if countdown timer > 5, disable noisyCountdown
-                          // if countdown timer > x, disable weird noise
-                        });
-                      },
-                      items: <int>[0, 3, 5, 10, 15]
-                          .map<DropdownMenuItem<int>>((int value) {
-                        return DropdownMenuItem<int>(
-                          value: value,
-                          child: Text(
-                            '$value',
-                            style: TextStyle(
-                              fontSize: 20,
-                            ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('Countdown timer'),
+                        SizedBox(width: 10),
+                        DropdownButton<int>(
+                          value: countdownTimer,
+                          iconSize: 24,
+                          elevation: 16,
+                          style:
+                              TextStyle(color: Theme.of(context).accentColor),
+                          underline: Container(
+                            height: 2,
+                            color: Theme.of(context).accentColor,
                           ),
-                        );
-                      }).toList(),
+                          onChanged: (int newValue) {
+                            HapticFeedback.vibrate();
+                            setState(() {
+                              countdownTimer = newValue;
+                              // clear messages in other sections
+                              clearMessagesExcept('countdown');
+                              if (!noisyCountdown[0] && countdownTimer < 5) {
+                                setToNone(noisyCountdown);
+                                countdownMessage = 'Disabled noisy countdown.';
+                              } else if (!weirdNoise[0]) {
+                                String weirdNoiseName = weirdNoiseList[
+                                    weirdNoise.indexOf(true) - 1];
+                                if (countdownTimer <
+                                    weirdNoiseTimeMap[weirdNoiseName])
+                                  setToNone(weirdNoise);
+                                countdownMessage = 'Disabled weird noise.';
+                              } else {
+                                countdownMessage = null;
+                              }
+                            });
+                          },
+                          items: countdownChoices
+                              .map<DropdownMenuItem<int>>((int value) {
+                            return DropdownMenuItem<int>(
+                              value: value,
+                              child: Text(
+                                '$value',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                     ),
+                    countdownMessage != null
+                        ? Column(
+                            children: [
+                              Text(
+                                countdownMessage,
+                                style: TextStyle(
+                                  color: Colors.red[600],
+                                  fontSize: 14,
+                                ),
+                              ),
+                              SizedBox(height: 5),
+                            ],
+                          )
+                        : Container(),
                   ],
                 ),
               ),
@@ -522,10 +560,7 @@ class _CameraScreenState extends State<CameraScreen>
                               // ensure weird noise is not enabled
                               // if enabled, disable and set message
                               if (!weirdNoise[0]) {
-                                weirdNoise[0] = true;
-                                for (int i = 1; i < weirdNoise.length; i++) {
-                                  weirdNoise[i] = false;
-                                }
+                                setToNone(weirdNoise);
                                 String disableWeirdNoiseMessage =
                                     'Disabled weird noise.';
                                 if (noisyCountdownMessage == null) {
@@ -609,21 +644,28 @@ class _CameraScreenState extends State<CameraScreen>
                             // if selected
                             if (!weirdNoise[0]) {
                               // TODO: ensure countdown timer is at mapped duration
-                              if (countdownTimer < 5) {
-                                countdownTimer = 5;
-                                weirdNoiseMessage = 'Minimum timer set to 5.';
+
+                              String weirdNoiseName =
+                                  weirdNoiseList[weirdNoise.indexOf(true) - 1];
+                              double weirdNoiseDuration =
+                                  weirdNoiseTimeMap[weirdNoiseName];
+                              if (countdownTimer < weirdNoiseDuration) {
+                                int minRequiredCountdown = 0;
+                                countdownChoices.reversed.forEach((v) {
+                                  if (v > weirdNoiseDuration) {
+                                    minRequiredCountdown = v;
+                                  }
+                                });
+                                countdownTimer = minRequiredCountdown;
+                                weirdNoiseMessage =
+                                    'Minimum timer set to $minRequiredCountdown.';
                               } else {
                                 weirdNoiseMessage = null;
                               }
                               // ensure noisy countdown is not enabled
                               // if enabled, disable and set message
                               if (!noisyCountdown[0]) {
-                                noisyCountdown[0] = true;
-                                for (int i = 1;
-                                    i < noisyCountdown.length;
-                                    i++) {
-                                  noisyCountdown[i] = false;
-                                }
+                                setToNone(noisyCountdown);
                                 String disableNoisyCountdownMessage =
                                     'Disabled noisy countdown.';
                                 if (weirdNoiseMessage == null) {
