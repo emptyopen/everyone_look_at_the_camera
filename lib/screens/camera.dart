@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:sensors/sensors.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import 'package:auto_size_text/auto_size_text.dart';
 
 import '../sound_manager.dart';
 import 'package:everyone_look_at_the_camera/components/wrap_toggle_text_buttons.dart';
@@ -20,7 +21,7 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   CameraController cameraController;
   List cameras;
   int selectedCameraIndex;
@@ -50,10 +51,18 @@ class _CameraScreenState extends State<CameraScreen>
     false
   ];
   String weirdNoiseMessage;
-  List<bool> voiceActivationCapture = [true, false, false];
+  List<bool> voiceActivationCapture = [true, false, false, false];
+  List<String> voiceActivationCaptureOptions = [
+    'None',
+    'cheese',
+    'strawberry fields',
+    'three two one',
+  ];
   List<bool> shutterNoise = [false, true, false, false, false];
   Animation<int> flashAnimation;
   AnimationController flashAnimationController;
+  Animation<int> fadeAnimation;
+  AnimationController fadeAnimationController;
   List<SoundManager> soundManagers = [
     SoundManager(),
     SoundManager(),
@@ -63,6 +72,7 @@ class _CameraScreenState extends State<CameraScreen>
     SoundManager(),
   ];
   SoundManager shutterSoundManager = SoundManager();
+  SoundManager confirmationManager = SoundManager();
   List<String> noisyCountdownBeeps = [
     'beep1.wav',
     'beep1.wav',
@@ -120,6 +130,7 @@ class _CameraScreenState extends State<CameraScreen>
       <StreamSubscription<dynamic>>[];
   SpeechToText speech = SpeechToText();
   String transcription = '';
+  bool activatedOrGaveUp = false;
 
   @override
   void initState() {
@@ -145,10 +156,15 @@ class _CameraScreenState extends State<CameraScreen>
       });
     }));
     // flash
-    flashAnimationController = AnimationController(
-        duration: const Duration(milliseconds: 200), vsync: this);
+    flashAnimationController =
+        AnimationController(duration: Duration(milliseconds: 200), vsync: this);
     flashAnimation =
         IntTween(begin: 0, end: 255).animate(flashAnimationController);
+    // fade
+    fadeAnimationController =
+        AnimationController(duration: Duration(seconds: 3), vsync: this);
+    fadeAnimation =
+        IntTween(begin: 200, end: 0).animate(fadeAnimationController);
     // resume camera
     WidgetsBinding.instance.addObserver(
       LifecycleEventHandler(
@@ -201,7 +217,23 @@ class _CameraScreenState extends State<CameraScreen>
 
       setState(() {
         takingPhoto = true;
+        activatedOrGaveUp = false;
       });
+
+      // speech recognition holding pattern
+      DateTime start = DateTime.now();
+      if (!voiceActivationCapture[0]) {
+        fadeAnimationController.reset();
+        recognizeSpeech();
+        while (activatedOrGaveUp == false &&
+            DateTime.now().difference(start).inSeconds < 15) {
+          print('${DateTime.now().difference(start).inSeconds}');
+          await Future.delayed(Duration(seconds: 1));
+        }
+        print('gaveUp!!!');
+        activatedOrGaveUp = true;
+        speech.stop();
+      }
 
       List<String> noisyCountdownSelection;
       if (noisyCountdown[0]) {
@@ -269,6 +301,10 @@ class _CameraScreenState extends State<CameraScreen>
       } else if (shutterNoise[4]) {
         shutterSoundManager.playLocal('camera-polaroid.wav');
       }
+
+      setState(() {
+        transcription = '';
+      });
 
       await cameraController.takePicture(path).then((value) {
         print(path);
@@ -384,23 +420,52 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
-  statusListener(status) {
-    print('listening status: $status');
+  statusListener(status) async {
+    print(
+        'incoming status is: $status ||| will listen? ${!activatedOrGaveUp && status == 'notListening'} ||| will stop? $activatedOrGaveUp');
+    if (!activatedOrGaveUp && status == 'notListening') {
+      await Future.delayed(Duration(milliseconds: 100));
+      speech.listen(
+        onResult: resultListener,
+      );
+    }
+    if (activatedOrGaveUp) {
+      speech.stop();
+    }
   }
 
-  errorListener(error) {
-    print('listening error: $error');
+  errorListener(error) async {
+    print('!!!! listening error: $error, gave up? $activatedOrGaveUp');
+    if (!activatedOrGaveUp) {
+      await Future.delayed(Duration(milliseconds: 100));
+      speech.listen(
+        onResult: resultListener,
+      );
+    }
+    if (activatedOrGaveUp) {
+      speech.stop();
+    }
   }
 
   resultListener(result) {
     setState(() {
-      transcription = result.recognizedWords;
-      if (result.recognizedWords.last == 'strawberry') {
-        speech.stop();
+      transcription = transcription + ' ' + result.recognizedWords;
+      transcription = transcription.trim();
+      print('t AFTER: $transcription');
+      if (voiceActivationCapture[0]) {
+        return;
+      } else {
+        String correctPhrase =
+            voiceActivationCaptureOptions[voiceActivationCapture.indexOf(true)];
+        if (transcription.toUpperCase().contains(correctPhrase.toUpperCase())) {
+          confirmationManager.playLocal('confirmation.wav');
+          speech.stop();
+          activatedOrGaveUp = true;
+        }
       }
-      if (result.finalResult) {
+      if (result.finalResult && activatedOrGaveUp) {
         print('listening complete');
-        // failed to find
+        fadeAnimationController.forward();
       }
     });
   }
@@ -412,11 +477,11 @@ class _CameraScreenState extends State<CameraScreen>
       setState(() {
         transcription = '';
       });
+      speech.stop();
+      print('try and fix');
       speech.listen(
         onResult: resultListener,
-        // --- this doesn't seem to be working
-        --
-        listenFor: Duration(seconds: 30),
+        // listenMode: ListenMode.dictation,
       );
     } else {
       print("The user has denied the use of speech recognition.");
@@ -424,27 +489,109 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   voiceRecognition() {
+    var width = MediaQuery.of(context).size.width;
+    String correctWord1;
+    String correctWord2;
+    String correctWord3;
+    if (voiceActivationCapture[0]) {
+      return;
+    } else {
+      String correctPhrase =
+          voiceActivationCaptureOptions[voiceActivationCapture.indexOf(true)];
+      List<String> correctWords = correctPhrase.split(' ');
+      if (correctWords.length == 3) {
+        correctWord1 = correctWords[0].toUpperCase();
+        correctWord2 = correctWords[1].toUpperCase();
+        correctWord3 = correctWords[2].toUpperCase();
+      }
+      if (correctWords.length == 2) {
+        correctWord2 = correctWords[0].toUpperCase();
+        correctWord3 = correctWords[1].toUpperCase();
+      }
+      if (correctWords.length == 1) {
+        correctWord3 = correctWords[0].toUpperCase();
+      }
+    }
+    // transcription = 'reasonable length words these strawberry fields';
     List words = transcription.split(' ');
-    String partialTranscription =
-        words.sublist(max(0, words.length - 3), words.length).join(' ');
-    // String partialTranscription = 'lol';
+    String word1 = words[max(0, words.length - 3)].toUpperCase();
+    String word2 = words[max(0, words.length - 2)].toUpperCase();
+    String word3 = words[max(0, words.length - 1)].toUpperCase();
+    if (words.length < 3) {
+      word2 = '';
+      word3 = '';
+    }
+    if (words.length < 2) {
+      word3 = '';
+    }
     return Container(
-      height: 200,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('voice recognition'),
-          FlatButton(
-              onPressed: () {
-                recognizeSpeech();
-              },
-              child: Text('start')),
-          Text(
-            partialTranscription.toUpperCase(),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 30,
-              color: Colors.white,
+          Transform.rotate(
+            angle: portraitAngle ? 0 : pi / 2,
+            child: Transform.translate(
+              offset: portraitAngle ? Offset(0, -140) : Offset(-30, -width / 3),
+              child: Container(
+                height: width / 3,
+                child: Center(
+                  child: AutoSizeText(
+                    word1,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 200,
+                      color: word1 == correctWord1
+                          ? Colors.red.withAlpha(fadeAnimation.value)
+                          : Colors.white.withAlpha(fadeAnimation.value),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Transform.rotate(
+            angle: portraitAngle ? 0 : pi / 2,
+            child: Transform.translate(
+              offset: portraitAngle ? Offset(0, -120) : Offset(-60, 0),
+              child: Container(
+                height: width / 3,
+                child: Center(
+                  child: AutoSizeText(
+                    word2,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 200,
+                      color: word2 == correctWord2
+                          ? Colors.red.withAlpha(fadeAnimation.value)
+                          : Colors.white.withAlpha(fadeAnimation.value),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Transform.rotate(
+            angle: portraitAngle ? 0 : pi / 2,
+            child: Transform.translate(
+              offset: portraitAngle ? Offset(0, -90) : Offset(-90, width / 3),
+              child: Container(
+                height: width / 3,
+                child: Center(
+                  child: AutoSizeText(
+                    word3,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 200,
+                      color: word3 == correctWord3
+                          ? Colors.red.withAlpha(fadeAnimation.value)
+                          : Colors.white.withAlpha(fadeAnimation.value),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -493,6 +640,9 @@ class _CameraScreenState extends State<CameraScreen>
                             HapticFeedback.vibrate();
                             setState(() {
                               countdownTimer = newValue;
+                              fadeAnimationController = AnimationController(
+                                  duration: Duration(seconds: newValue),
+                                  vsync: this);
                               // clear messages in other sections
                               clearMessagesExcept('countdown');
                               if (!noisyCountdown[0] && countdownTimer < 5) {
@@ -772,12 +922,9 @@ class _CameraScreenState extends State<CameraScreen>
                       Text('Voice activation capture'),
                       SizedBox(height: 10),
                       WrapToggleTextButtons(
-                        textList: [
-                          'None',
-                          '"cherry tomatoes"',
-                          '"capture"',
-                        ],
+                        textList: voiceActivationCaptureOptions,
                         isSelected: voiceActivationCapture,
+                        boxWidth: 200,
                         onPressed: (int index) {
                           HapticFeedback.vibrate();
                           setState(() {
@@ -868,7 +1015,6 @@ class _CameraScreenState extends State<CameraScreen>
       decoration: BoxDecoration(
         color: Colors.white.withAlpha(flashAnimation.value),
       ),
-      child: Text('${flashAnimation.value}'),
     );
   }
 

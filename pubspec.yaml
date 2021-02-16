@@ -24,10 +24,18 @@ dependencies:
   material_design_icons_flutter:
   gallery_saver: ^2.0.3
   speech_to_text: ^3.1.0
+  auto_size_text: ^2.1.0
 
 dev_dependencies:
+  flutter_launcher_icons: "^0.8.0"
   flutter_test:
     sdk: flutter
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path_android: "assets/icon/everyone_look_cropped.png"
+  image_path_ios: "assets/icon/everyone_look_cropped.png"
     
 flutter:
   uses-material-design: true
