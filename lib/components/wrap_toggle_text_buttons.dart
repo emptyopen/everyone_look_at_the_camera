@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:auto_size_text/auto_size_text.dart';
 
 class WrapToggleTextButtons extends StatefulWidget {
   final List<String> textList;
@@ -63,18 +64,22 @@ class TextToggleButton extends StatelessWidget {
       height: height ?? 30,
       decoration: BoxDecoration(
         border: Border.all(
-          color: Colors.grey,
+          color: active ? Theme.of(context).accentColor : Colors.grey,
         ),
         borderRadius: BorderRadius.circular(5),
       ),
+      padding: EdgeInsets.fromLTRB(10, 3, 10, 3),
       child: InkWell(
         child: Center(
-          child: Text(
+          child: AutoSizeText(
             text,
+            maxLines: 1,
             style: TextStyle(
-              color: active
-                  ? Theme.of(context).accentColor
-                  : Theme.of(context).disabledColor,
+              color: index == 0
+                  ? Colors.grey
+                  : active
+                      ? Colors.black
+                      : Theme.of(context).disabledColor,
             ),
           ),
         ),

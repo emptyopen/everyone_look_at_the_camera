@@ -35,7 +35,7 @@ flutter_icons:
   android: true
   ios: true
   image_path_android: "assets/icon/everyone_look_cropped.png"
-  image_path_ios: "assets/icon/everyone_look_cropped.png"
+  image_path_ios: "assets/icon/everyone_look.png"
     
 flutter:
   uses-material-design: true

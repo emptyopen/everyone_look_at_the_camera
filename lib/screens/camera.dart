@@ -31,32 +31,99 @@ class _CameraScreenState extends State<CameraScreen>
   List<int> countdownChoices = [0, 3, 5, 7, 10, 15];
   int countdownTimer = 3;
   String countdownMessage;
+  String countdownNoiseMessage;
+  String endingNoiseMessage;
   int countdownSeconds;
   bool giantNumbersEnabled = true;
-  List<bool> noisyCountdown = [true, false, false, false];
-  String noisyCountdownMessage;
-  List<bool> weirdNoise = [
-    true,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false
+  List countdownNoises = [
+    [true, 'None', []],
+    [
+      false,
+      '10 to 1',
+      [
+        ['countdown-ten'],
+        ['countdown-nine'],
+        ['countdown-eight'],
+        ['countdown-seven'],
+        ['countdown-six'],
+        ['countdown-five'],
+        ['countdown-four'],
+        ['countdown-three'],
+        ['countdown-two'],
+        ['countdown-one'],
+      ]
+    ],
+    [
+      false,
+      'Plucks',
+      ['plucked1', 'plucked2']
+    ],
+    [
+      false,
+      'Light Ring',
+      ['beep1']
+    ],
+    [
+      false,
+      'Asteroid Gun',
+      ['asteroid-gun']
+    ],
+    [
+      false,
+      'Upward Beep',
+      ['upward-beep']
+    ],
+    [
+      false,
+      'Upward Chime',
+      ['up-chime']
+    ],
+    [
+      false,
+      'Info Bleep',
+      ['info-bleep']
+    ],
+    [
+      false,
+      'Sneeze',
+      ['sneeze']
+    ],
+    [
+      false,
+      'Small Alarm',
+      ['alarm-short-b']
+    ],
   ];
-  String weirdNoiseMessage;
-  List<bool> voiceActivationCapture = [true, false, false, false];
-  List<String> voiceActivationCaptureOptions = [
-    'None',
-    'cheese',
-    'strawberry fields',
-    'three two one',
+  List endingNoises = [
+    [true, 'None', '', 0.0],
+    [false, 'Strings', 'string-ending', 4.0],
+    [false, 'Bell', 'bell-jingle', 3.6],
+    [false, 'Boing', 'boing', 2.5],
+    [false, 'Change', 'change-rattling', 4.9],
+    [false, 'Disney', 'disney-chime', 4],
+    [false, 'Electric', 'electric-jingle', 4.6],
+    [false, 'Guitar', 'guitar-jingle', 4.6],
+    [false, 'Ouch', 'ouch', 2.4],
+    [false, 'Dropped Pans', 'pans-dropping', 3.8],
+    [false, 'Squeaky Door', 'squeaky-door', 5.0],
+    [false, 'Synth', 'synth-jingle', 4.6],
+    [false, 'Mongol', 'throat-chant', 6.1],
+    [false, 'Toilet', 'toilet', 3.9],
+    [false, 'Dog', 'dog', 6],
+    [false, 'Grunt Smash', 'grunt-smash', 6],
+    [false, 'Fail Horn', 'horn-fail', 6],
+    [false, 'Mystery', 'mystery', 6],
+    [false, 'Vocoder', 'oops-vocoder', 8],
+    [false, 'Ship Horn', 'ship-horn', 8],
+    [false, 'Splash', 'splash', 5],
+    [false, 'Transformer', 'transformer', 6],
+    [false, 'Explosion', 'explosion', 4],
+  ];
+  List voiceActivations = [
+    [true, 'None'],
+    [false, 'cheese'],
+    [false, 'strawberry fields'],
+    [false, 'where is daisy'],
   ];
   List<bool> shutterNoise = [false, true, false, false, false];
   Animation<int> flashAnimation;
@@ -73,58 +140,6 @@ class _CameraScreenState extends State<CameraScreen>
   ];
   SoundManager shutterSoundManager = SoundManager();
   SoundManager confirmationManager = SoundManager();
-  List<String> noisyCountdownBeeps = [
-    'beep1.wav',
-    'beep1.wav',
-    'beep1.wav',
-    'beep1.wav',
-    'beep1.wav',
-    'beep2.wav',
-  ];
-  List<String> noisyCountdownAlarms = [
-    'alarm-short-b.wav',
-    'alarm-short-b.wav',
-    'alarm-short-b.wav',
-    'alarm-short-b.wav',
-    'alarm-short-b.wav',
-    'factory-alarm.wav',
-  ];
-  List<String> noisyCountdownOrchestra = [
-    'plucked1.wav',
-    'plucked2.wav',
-    'plucked1.wav',
-    'string-ending.wav',
-    null,
-    null,
-  ];
-  List<String> weirdNoiseList = [
-    'bell-jingle',
-    'boing',
-    'change-rattling',
-    'disney-chime',
-    'electric-jingle',
-    'guitar-jingle',
-    'ouch',
-    'pans-dropping',
-    'squeaky-door',
-    'synth-jingle',
-    'throat-chant',
-    'toilet',
-  ];
-  Map<String, double> weirdNoiseTimeMap = {
-    'bell-jingle': 3.6,
-    'boing': 2.5,
-    'change-rattling': 4.9,
-    'disney-chime': 4,
-    'electric-jingle': 4.6,
-    'guitar-jingle': 4,
-    'ouch': 2.4,
-    'pans-dropping': 3.8,
-    'squeaky-door': 5.0,
-    'synth-jingle': 4.6,
-    'throat-chant': 6.1,
-    'toilet': 3.9,
-  };
   List<double> _accelerometerValues;
   List<StreamSubscription<dynamic>> _streamSubscriptions =
       <StreamSubscription<dynamic>>[];
@@ -222,7 +237,7 @@ class _CameraScreenState extends State<CameraScreen>
 
       // speech recognition holding pattern
       DateTime start = DateTime.now();
-      if (!voiceActivationCapture[0]) {
+      if (!voiceActivations[0][0]) {
         fadeAnimationController.reset();
         recognizeSpeech();
         while (activatedOrGaveUp == false &&
@@ -235,16 +250,16 @@ class _CameraScreenState extends State<CameraScreen>
         speech.stop();
       }
 
-      List<String> noisyCountdownSelection;
-      if (noisyCountdown[0]) {
-        noisyCountdownSelection = [null, null, null, null, null, null];
-      } else if (noisyCountdown[1]) {
-        noisyCountdownSelection = noisyCountdownBeeps;
-      } else if (noisyCountdown[2]) {
-        noisyCountdownSelection = noisyCountdownAlarms;
-      } else if (noisyCountdown[3]) {
-        noisyCountdownSelection = noisyCountdownOrchestra;
-      }
+      // List<String> countdownNoiseSelection;
+      // if (countdownNoise[0]) {
+      //   countdownNoiseSelection = [null, null, null, null, null, null];
+      // } else if (countdownNoise[1]) {
+      //   countdownNoiseSelection = countdownNoiseBeeps;
+      // } else if (countdownNoise[2]) {
+      //   countdownNoiseSelection = countdownNoiseAlarms;
+      // } else if (countdownNoise[3]) {
+      //   countdownNoiseSelection = countdownNoiseOrchestra;
+      // }
 
       DateTime startTime = DateTime.now();
 
@@ -261,29 +276,32 @@ class _CameraScreenState extends State<CameraScreen>
             setState(() {
               countdownSeconds--;
             });
-            if (countdownSeconds <= 5) {
-              if (noisyCountdownSelection[5 - countdownSeconds] != null) {
-                soundManagers[5 - countdownSeconds]
-                    .playLocal(noisyCountdownSelection[5 - countdownSeconds]);
-              }
-            }
+
+            // play countdown if ending noise hasn't started
+
+            // if (countdownSeconds <= 5) {
+            //   if (countdownNoiseSelection[5 - countdownSeconds] != null) {
+            //     soundManagers[5 - countdownSeconds]
+            //         .playLocal(countdownNoiseSelection[5 - countdownSeconds]);
+            //   }
+            // }
+
           }
         },
       );
-      bool weirdNoiseStarted = false;
+      bool endingNoiseStarted = false;
       while (countdownSeconds > 0) {
-        // check if weird noise should be played
-        if (!weirdNoise[0]) {
+        // check if ending noise should be played
+        if (!endingNoises[0][0]) {
           double elapsedSeconds = DateTime.now()
                   .difference(startTime.add(Duration(seconds: 1)))
                   .inMilliseconds /
               1000.0;
           double remainingSeconds = countdownTimer.toDouble() - elapsedSeconds;
-          String weirdNoiseName = weirdNoiseList[weirdNoise.indexOf(true) - 1];
-          if (!weirdNoiseStarted &&
-              weirdNoiseTimeMap[weirdNoiseName] > remainingSeconds) {
-            soundManagers[0].playLocal('$weirdNoiseName.wav');
-            weirdNoiseStarted = true;
+          List endingNoise = endingNoises.firstWhere((x) => x[0]);
+          if (!endingNoiseStarted && endingNoise[3] > remainingSeconds) {
+            soundManagers[0].playLocal('${endingNoise[2]}.wav');
+            endingNoiseStarted = true;
           }
         }
 
@@ -405,18 +423,18 @@ class _CameraScreenState extends State<CameraScreen>
     if (section != 'countdown') {
       countdownMessage = null;
     }
-    if (section != 'noisyCountdown') {
-      noisyCountdownMessage = null;
+    if (section != 'countdownNoise') {
+      countdownNoiseMessage = null;
     }
-    if (section != 'weirdNoise') {
-      weirdNoiseMessage = null;
+    if (section != 'endingNoise') {
+      endingNoiseMessage = null;
     }
   }
 
   setToNone(list) {
-    list[0] = true;
+    list[0][0] = true;
     for (int i = 1; i < list.length; i++) {
-      list[i] = false;
+      list[i][0] = false;
     }
   }
 
@@ -452,11 +470,10 @@ class _CameraScreenState extends State<CameraScreen>
       transcription = transcription + ' ' + result.recognizedWords;
       transcription = transcription.trim();
       print('t AFTER: $transcription');
-      if (voiceActivationCapture[0]) {
+      if (voiceActivations[0][0]) {
         return;
       } else {
-        String correctPhrase =
-            voiceActivationCaptureOptions[voiceActivationCapture.indexOf(true)];
+        String correctPhrase = voiceActivations.firstWhere((x) => x[0])[1];
         if (transcription.toUpperCase().contains(correctPhrase.toUpperCase())) {
           confirmationManager.playLocal('confirmation.wav');
           speech.stop();
@@ -493,11 +510,10 @@ class _CameraScreenState extends State<CameraScreen>
     String correctWord1;
     String correctWord2;
     String correctWord3;
-    if (voiceActivationCapture[0]) {
+    if (voiceActivations[0][0]) {
       return;
     } else {
-      String correctPhrase =
-          voiceActivationCaptureOptions[voiceActivationCapture.indexOf(true)];
+      String correctPhrase = voiceActivations.firstWhere((x) => x[0])[1];
       List<String> correctWords = correctPhrase.split(' ');
       if (correctWords.length == 3) {
         correctWord1 = correctWords[0].toUpperCase();
@@ -645,16 +661,16 @@ class _CameraScreenState extends State<CameraScreen>
                                   vsync: this);
                               // clear messages in other sections
                               clearMessagesExcept('countdown');
-                              if (!noisyCountdown[0] && countdownTimer < 5) {
-                                setToNone(noisyCountdown);
+                              if (!countdownNoises[0][0] &&
+                                  countdownTimer < 5) {
+                                setToNone(countdownNoises);
                                 countdownMessage = 'Disabled noisy countdown.';
-                              } else if (!weirdNoise[0]) {
-                                String weirdNoiseName = weirdNoiseList[
-                                    weirdNoise.indexOf(true) - 1];
+                              } else if (!endingNoises[0][0]) {
                                 if (countdownTimer <
-                                    weirdNoiseTimeMap[weirdNoiseName])
-                                  setToNone(weirdNoise);
-                                countdownMessage = 'Disabled weird noise.';
+                                    endingNoises.firstWhere((x) => x[0])[3]) {
+                                  setToNone(endingNoises);
+                                  countdownMessage = 'Disabled ending noise.';
+                                }
                               } else {
                                 countdownMessage = null;
                               }
@@ -727,13 +743,13 @@ class _CameraScreenState extends State<CameraScreen>
                   padding: EdgeInsets.all(10),
                   child: Column(
                     children: [
-                      Text('Noisy countdown'),
-                      noisyCountdownMessage != null
+                      Text('Countdown noise'),
+                      countdownNoiseMessage != null
                           ? Column(
                               children: [
                                 SizedBox(height: 5),
                                 Text(
-                                  noisyCountdownMessage,
+                                  countdownNoiseMessage,
                                   style: TextStyle(
                                     color: Colors.red[600],
                                     fontSize: 14,
@@ -743,61 +759,42 @@ class _CameraScreenState extends State<CameraScreen>
                             )
                           : Container(),
                       SizedBox(height: 10),
-                      ToggleButtons(
-                        children: <Widget>[
-                          Icon(
-                            Icons.cancel,
-                            color: Colors.grey,
-                          ),
-                          Icon(MdiIcons.pulse),
-                          Icon(MdiIcons.bomb),
-                          Icon(MdiIcons.violin),
-                        ],
+                      WrapToggleTextButtons(
+                        textList:
+                            countdownNoises.map((x) => x[1] as String).toList(),
+                        isSelected:
+                            countdownNoises.map((x) => x[0] as bool).toList(),
+                        boxWidth: 100,
                         onPressed: (int index) {
                           HapticFeedback.vibrate();
                           setState(() {
                             for (int buttonIndex = 0;
-                                buttonIndex < noisyCountdown.length;
+                                buttonIndex < countdownNoises.length;
                                 buttonIndex++) {
                               if (buttonIndex == index) {
-                                noisyCountdown[buttonIndex] = true;
+                                countdownNoises[buttonIndex][0] = true;
                               } else {
-                                noisyCountdown[buttonIndex] = false;
+                                countdownNoises[buttonIndex][0] = false;
                               }
                             }
                             // clear messages in other sections
-                            clearMessagesExcept('noisyCountdown');
+                            clearMessagesExcept('countdownNoise');
                             // if selected
-                            if (!noisyCountdown[0]) {
-                              // ensure countdown timer is at least 5
-                              // if less than 5, set to 5 and set message
-                              if (countdownTimer < 5) {
-                                countdownTimer = 5;
-                                noisyCountdownMessage =
-                                    'Minimum timer set to 5.';
+                            if (!countdownNoises[0][0]) {
+                              // ensure countdown timer is at least 3. if less than 3, set to 3 and set message
+                              if (countdownTimer < 3) {
+                                countdownTimer = 3;
+                                countdownNoiseMessage =
+                                    'Countdown increased to 3.';
                               } else {
-                                noisyCountdownMessage = null;
+                                countdownNoiseMessage = null;
                               }
-                              // ensure weird noise is not enabled
-                              // if enabled, disable and set message
-                              if (!weirdNoise[0]) {
-                                setToNone(weirdNoise);
-                                String disableWeirdNoiseMessage =
-                                    'Disabled weird noise.';
-                                if (noisyCountdownMessage == null) {
-                                  noisyCountdownMessage =
-                                      disableWeirdNoiseMessage;
-                                } else {
-                                  noisyCountdownMessage +=
-                                      '\n' + disableWeirdNoiseMessage;
-                                }
-                              }
+                              // if timer & endingNoise result in no countdown noise, notify
                             } else {
-                              noisyCountdownMessage = null;
+                              countdownNoiseMessage = null;
                             }
                           });
                         },
-                        isSelected: noisyCountdown,
                       ),
                     ],
                   ),
@@ -815,13 +812,13 @@ class _CameraScreenState extends State<CameraScreen>
                   padding: EdgeInsets.all(10),
                   child: Column(
                     children: [
-                      Text('Weird noise'),
-                      weirdNoiseMessage != null
+                      Text('Final noise'),
+                      endingNoiseMessage != null
                           ? Column(
                               children: [
                                 SizedBox(height: 5),
                                 Text(
-                                  weirdNoiseMessage,
+                                  endingNoiseMessage,
                                   style: TextStyle(
                                     color: Colors.red[600],
                                     fontSize: 14,
@@ -832,73 +829,46 @@ class _CameraScreenState extends State<CameraScreen>
                           : Container(),
                       SizedBox(height: 10),
                       WrapToggleTextButtons(
-                        textList: [
-                          'None',
-                          'Bell',
-                          'Boing',
-                          'Change',
-                          'Disney',
-                          'Electric',
-                          'Guitar',
-                          'Ouch',
-                          'Pans',
-                          'Squeak',
-                          'Synth',
-                          'Mongol',
-                          'Toilet',
-                        ],
-                        isSelected: weirdNoise,
+                        textList:
+                            endingNoises.map((x) => x[1] as String).toList(),
+                        isSelected:
+                            endingNoises.map((x) => x[0] as bool).toList(),
+                        boxWidth: 100,
                         onPressed: (int index) {
                           HapticFeedback.vibrate();
                           setState(() {
                             for (int buttonIndex = 0;
-                                buttonIndex < weirdNoise.length;
+                                buttonIndex < endingNoises.length;
                                 buttonIndex++) {
                               if (buttonIndex == index) {
-                                weirdNoise[buttonIndex] = true;
+                                endingNoises[buttonIndex][0] = true;
                               } else {
-                                weirdNoise[buttonIndex] = false;
+                                endingNoises[buttonIndex][0] = false;
                               }
                             }
                             // clear messages in other sections
-                            clearMessagesExcept('weirdNoise');
+                            clearMessagesExcept('endingNoise');
                             // if selected
-                            if (!weirdNoise[0]) {
-                              // TODO: ensure countdown timer is at mapped duration
-
-                              String weirdNoiseName =
-                                  weirdNoiseList[weirdNoise.indexOf(true) - 1];
-                              double weirdNoiseDuration =
-                                  weirdNoiseTimeMap[weirdNoiseName];
-                              if (countdownTimer < weirdNoiseDuration) {
+                            if (!endingNoises[0][0]) {
+                              int endingNoiseIndex = endingNoises
+                                  .indexWhere((endingNoise) => endingNoise[0]);
+                              double endingNoiseDuration =
+                                  endingNoises[endingNoiseIndex][3];
+                              if (countdownTimer < endingNoiseDuration) {
                                 int minRequiredCountdown = 0;
                                 countdownChoices.reversed.forEach((v) {
-                                  if (v > weirdNoiseDuration) {
+                                  if (v > endingNoiseDuration) {
                                     minRequiredCountdown = v;
                                   }
                                 });
                                 countdownTimer = minRequiredCountdown;
-                                weirdNoiseMessage =
+                                endingNoiseMessage =
                                     'Minimum timer set to $minRequiredCountdown.';
                               } else {
-                                weirdNoiseMessage = null;
-                              }
-                              // ensure noisy countdown is not enabled
-                              // if enabled, disable and set message
-                              if (!noisyCountdown[0]) {
-                                setToNone(noisyCountdown);
-                                String disableNoisyCountdownMessage =
-                                    'Disabled noisy countdown.';
-                                if (weirdNoiseMessage == null) {
-                                  weirdNoiseMessage =
-                                      disableNoisyCountdownMessage;
-                                } else {
-                                  weirdNoiseMessage +=
-                                      '\n' + disableNoisyCountdownMessage;
-                                }
+                                endingNoiseMessage = null;
                               }
                             } else {
-                              weirdNoiseMessage = null;
+                              endingNoiseMessage = null;
                             }
                           });
                         },
@@ -922,19 +892,22 @@ class _CameraScreenState extends State<CameraScreen>
                       Text('Voice activation capture'),
                       SizedBox(height: 10),
                       WrapToggleTextButtons(
-                        textList: voiceActivationCaptureOptions,
-                        isSelected: voiceActivationCapture,
+                        textList: voiceActivations
+                            .map((x) => x[1] as String)
+                            .toList(),
+                        isSelected:
+                            voiceActivations.map((x) => x[0] as bool).toList(),
                         boxWidth: 200,
                         onPressed: (int index) {
                           HapticFeedback.vibrate();
                           setState(() {
                             for (int buttonIndex = 0;
-                                buttonIndex < voiceActivationCapture.length;
+                                buttonIndex < voiceActivations.length;
                                 buttonIndex++) {
                               if (buttonIndex == index) {
-                                voiceActivationCapture[buttonIndex] = true;
+                                voiceActivations[buttonIndex][0] = true;
                               } else {
-                                voiceActivationCapture[buttonIndex] = false;
+                                voiceActivations[buttonIndex][0] = false;
                               }
                             }
                           });
@@ -1129,18 +1102,22 @@ class _CameraScreenState extends State<CameraScreen>
   settingsPreview() {
     List<Widget> fields = [];
     List<Widget> values = [];
-    addFieldValue(fields, values, 'COUNTDOWN', countdownTimer);
+    addFieldValue(fields, values, 'TIMER', countdownTimer);
     if (giantNumbersEnabled) {
-      addFieldValue(fields, values, 'GIANT', 'ON');
+      addFieldValue(fields, values, 'GIANT NUMBERS', 'ON');
     }
-    if (!noisyCountdown[0]) {
-      addFieldValue(fields, values, 'NOISY', 'ON');
+    // TODO: display exact
+    if (!countdownNoises[0][0]) {
+      addFieldValue(fields, values, 'COUNTDOWN NOISE',
+          countdownNoises.firstWhere((x) => x[0])[1].toUpperCase());
     }
-    if (!weirdNoise[0]) {
-      addFieldValue(fields, values, 'WEIRD', 'ON');
+    if (!endingNoises[0][0]) {
+      addFieldValue(fields, values, 'ENDING NOISE',
+          endingNoises.firstWhere((x) => x[0])[1].toUpperCase());
     }
-    if (!voiceActivationCapture[0]) {
-      addFieldValue(fields, values, 'VOICE', 'ON');
+    if (!voiceActivations[0][0]) {
+      addFieldValue(fields, values, 'VOICE ACTIVATION',
+          voiceActivations.firstWhere((x) => x[0])[1].toUpperCase());
     }
     return Transform.rotate(
       angle: portraitAngle ? 0 : pi / 2,
@@ -1148,18 +1125,19 @@ class _CameraScreenState extends State<CameraScreen>
         decoration: BoxDecoration(
           border: Border.all(color: Colors.white),
           borderRadius: BorderRadius.circular(5),
+          color: Colors.black.withAlpha(100),
         ),
         padding: EdgeInsets.all(10),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              // mainAxisAlignment: MainAxisAlignment.center,
               children: fields,
             ),
             SizedBox(width: 15),
             Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              // mainAxisAlignment: MainAxisAlignment.center,
               children: values,
             ),
           ],
@@ -1189,8 +1167,8 @@ class _CameraScreenState extends State<CameraScreen>
             ),
             Positioned(
               child: takingPhoto ? Container() : settingsPreview(),
-              bottom: portraitAngle ? 140 : 160,
-              right: 20,
+              bottom: portraitAngle ? 180 : 220,
+              right: portraitAngle ? 20 : 0,
             ),
             Align(
               alignment: Alignment.center,
