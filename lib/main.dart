@@ -2,19 +2,12 @@ import 'package:everyone_look_at_the_camera/screens/camera.dart';
 import 'package:flutter/material.dart';
 
 // TODO:
-// make sounds be either: countdown or finish
-// move settings up (relative to camera buttons)
-// move preview buttons up
-// soften vibration
-// change bomb countdown to 5 4 3 2 1 explosion
-// sound bug - doesn't play more than once unless changing
-// add random noise
-// clarify what different noises do
-// maybe consolidate into one type of sound selection
-// voice activation text is spazzy
+// fix 10 9 8 for durations other than 10
+// move preview buttons up (for iphone only?)
+// freeze in landscape, (prevent rotation)
+// sound bug - doesn't play more than once unless changing (iphone only?)
+// use cooler font for voice activation
 // background color for icon
-// text overflow in settings
-// allow 3 seconds for noises
 // make noises consistent (buffer/audio/cache)
 // look at front facing flash, or white screen flash
 // BIG: multiple photos in succession, preview needs to have scrolling views of the photos

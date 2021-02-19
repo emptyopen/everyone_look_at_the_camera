@@ -5,9 +5,9 @@ import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:async';
 import 'dart:math';
-import 'package:flutter/services.dart';
+import 'package:vibration/vibration.dart';
 import 'package:sensors/sensors.dart';
-import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'package:flutter/services.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 
@@ -41,16 +41,16 @@ class _CameraScreenState extends State<CameraScreen>
       false,
       '10 to 1',
       [
-        ['countdown-ten'],
-        ['countdown-nine'],
-        ['countdown-eight'],
-        ['countdown-seven'],
-        ['countdown-six'],
-        ['countdown-five'],
-        ['countdown-four'],
-        ['countdown-three'],
-        ['countdown-two'],
-        ['countdown-one'],
+        'countdown-ten',
+        'countdown-nine',
+        'countdown-eight',
+        'countdown-seven',
+        'countdown-six',
+        'countdown-five',
+        'countdown-four',
+        'countdown-three',
+        'countdown-two',
+        'countdown-one',
       ]
     ],
     [
@@ -109,35 +109,31 @@ class _CameraScreenState extends State<CameraScreen>
     [false, 'Synth', 'synth-jingle', 4.6],
     [false, 'Mongol', 'throat-chant', 6.1],
     [false, 'Toilet', 'toilet', 3.9],
-    [false, 'Dog', 'dog', 6],
-    [false, 'Grunt Smash', 'grunt-smash', 6],
-    [false, 'Fail Horn', 'horn-fail', 6],
-    [false, 'Mystery', 'mystery', 6],
-    [false, 'Vocoder', 'oops-vocoder', 8],
-    [false, 'Ship Horn', 'ship-horn', 8],
-    [false, 'Splash', 'splash', 5],
-    [false, 'Transformer', 'transformer', 6],
-    [false, 'Explosion', 'explosion', 4],
+    [false, 'Dog', 'dog', 6.0],
+    [false, 'Grunt Smash', 'grunt-smash', 3.0],
+    [false, 'Fail Horn', 'horn-fail', 3.0],
+    [false, 'Mystery', 'mystery', 2],
+    [false, 'Vocoder', 'oops-vocoder', 7],
+    [false, 'Ship Horn', 'ship-horn', 4],
+    [false, 'Splash', 'splash', 2],
+    [false, 'Transformer', 'transformer', 4],
+    [false, 'Explosion', 'explosion', 1],
   ];
   List voiceActivations = [
     [true, 'None'],
     [false, 'cheese'],
     [false, 'strawberry fields'],
     [false, 'where is daisy'],
+    [false, 'treasure chest'],
+    [false, 'kangaroo'],
   ];
   List<bool> shutterNoise = [false, true, false, false, false];
   Animation<int> flashAnimation;
   AnimationController flashAnimationController;
   Animation<int> fadeAnimation;
   AnimationController fadeAnimationController;
-  List<SoundManager> soundManagers = [
-    SoundManager(),
-    SoundManager(),
-    SoundManager(),
-    SoundManager(),
-    SoundManager(),
-    SoundManager(),
-  ];
+  SoundManager sampleSoundManager = SoundManager();
+  SoundManager endingSoundManager = SoundManager();
   SoundManager shutterSoundManager = SoundManager();
   SoundManager confirmationManager = SoundManager();
   List<double> _accelerometerValues;
@@ -145,6 +141,7 @@ class _CameraScreenState extends State<CameraScreen>
       <StreamSubscription<dynamic>>[];
   SpeechToText speech = SpeechToText();
   String transcription = '';
+  String newTranscription = '';
   bool activatedOrGaveUp = false;
 
   @override
@@ -219,111 +216,128 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
+  softVibrate() {
+    Vibration.vibrate(amplitude: 50, duration: 50);
+  }
+
   onCapture(context) async {
+    final p = await getTemporaryDirectory();
+    final name = 'ELATC-' +
+        DateTime.now()
+            .toString()
+            .replaceAll(' ', 'T')
+            .replaceAll(':', '-')
+            .replaceAll('.', '-');
+    final path = "${p.path}/$name.png";
+
+    setState(() {
+      takingPhoto = true;
+      activatedOrGaveUp = false;
+    });
+
+    // speech recognition holding pattern
+    DateTime start = DateTime.now();
+    if (!voiceActivations[0][0]) {
+      fadeAnimationController.reset();
+      recognizeSpeech();
+      while (activatedOrGaveUp == false &&
+          DateTime.now().difference(start).inSeconds < 30) {
+        await Future.delayed(Duration(seconds: 1));
+      }
+      activatedOrGaveUp = true;
+      speech.stop();
+    }
+
+    // START COUNTDOWN
+
+    bool endingNoiseStarted = false;
+
+    // construct countdown noises
+    // for each second between the countdown start and the beginning of the ending noise,
+    //   create a sound manager and a sound based on the pattern
+    List<SoundManager> countdownSoundManagers = [];
+    List<String> countdownSoundOrchestration = [];
+    int patternIndex = 0;
+    List countdownNoise = countdownNoises.firstWhere((x) => x[0]);
+    List endingNoise = endingNoises.firstWhere((x) => x[0]);
+    int numSecondsOfCountdownNoises =
+        (countdownTimer - endingNoise[3]).ceil() + 1;
+    if (!countdownNoises[0][0]) {
+      for (int i = 0; i < numSecondsOfCountdownNoises; i++) {
+        countdownSoundManagers.add(SoundManager());
+        countdownSoundOrchestration.add(countdownNoise[2][patternIndex]);
+        patternIndex += 1;
+        if (patternIndex == countdownNoise[2].length) {
+          patternIndex = 0;
+        }
+      }
+    }
+
+    DateTime startTime = DateTime.now();
+    int countdownIndex = 0;
+
+    countdownSeconds = countdownTimer + 1;
+    const oneSec = const Duration(seconds: 1);
+    Timer.periodic(
+      oneSec,
+      (Timer timer) {
+        if (countdownSeconds == 0) {
+          setState(() {
+            timer.cancel();
+          });
+        } else {
+          setState(() {
+            countdownSeconds--;
+          });
+
+          // play countdown if ending noise hasn't started
+          if (!endingNoiseStarted &&
+              !countdownNoises[0][0] &&
+              countdownSeconds != 0) {
+            countdownSoundManagers[countdownIndex].playLocal(
+                '${countdownSoundOrchestration[countdownIndex]}.wav');
+          }
+        }
+        countdownIndex += 1;
+      },
+    );
+    while (countdownSeconds > 0) {
+      // check if ending noise should be played
+      if (!endingNoises[0][0]) {
+        double elapsedSeconds = DateTime.now()
+                .difference(startTime.add(Duration(seconds: 1)))
+                .inMilliseconds /
+            1000.0;
+        double remainingSeconds = countdownTimer.toDouble() - elapsedSeconds;
+        List endingNoise = endingNoises.firstWhere((x) => x[0]);
+        if (!endingNoiseStarted && endingNoise[3] > remainingSeconds) {
+          endingSoundManager.playLocal('${endingNoise[2]}.wav');
+          endingNoiseStarted = true;
+        }
+      }
+
+      await Future.delayed(Duration(milliseconds: 100));
+    }
+
+    flashAnimationController.forward();
+
+    if (shutterNoise[1]) {
+      shutterSoundManager.playLocal('camera-dslr.wav');
+    } else if (shutterNoise[2]) {
+      shutterSoundManager.playLocal('camera-modern.wav');
+    } else if (shutterNoise[3]) {
+      shutterSoundManager.playLocal('camera-minolta.wav');
+    } else if (shutterNoise[4]) {
+      shutterSoundManager.playLocal('camera-polaroid.wav');
+    }
+
+    // reset voice activation transcription
+    setState(() {
+      transcription = '';
+      fadeAnimationController.reverse();
+    });
+
     try {
-      final p = await getTemporaryDirectory();
-      final name = 'ELATC-' +
-          DateTime.now()
-              .toString()
-              .replaceAll(' ', 'T')
-              .replaceAll(':', '-')
-              .replaceAll('.', '-');
-      final path = "${p.path}/$name.png";
-
-      setState(() {
-        takingPhoto = true;
-        activatedOrGaveUp = false;
-      });
-
-      // speech recognition holding pattern
-      DateTime start = DateTime.now();
-      if (!voiceActivations[0][0]) {
-        fadeAnimationController.reset();
-        recognizeSpeech();
-        while (activatedOrGaveUp == false &&
-            DateTime.now().difference(start).inSeconds < 15) {
-          print('${DateTime.now().difference(start).inSeconds}');
-          await Future.delayed(Duration(seconds: 1));
-        }
-        print('gaveUp!!!');
-        activatedOrGaveUp = true;
-        speech.stop();
-      }
-
-      // List<String> countdownNoiseSelection;
-      // if (countdownNoise[0]) {
-      //   countdownNoiseSelection = [null, null, null, null, null, null];
-      // } else if (countdownNoise[1]) {
-      //   countdownNoiseSelection = countdownNoiseBeeps;
-      // } else if (countdownNoise[2]) {
-      //   countdownNoiseSelection = countdownNoiseAlarms;
-      // } else if (countdownNoise[3]) {
-      //   countdownNoiseSelection = countdownNoiseOrchestra;
-      // }
-
-      DateTime startTime = DateTime.now();
-
-      countdownSeconds = countdownTimer + 1;
-      const oneSec = const Duration(seconds: 1);
-      Timer.periodic(
-        oneSec,
-        (Timer timer) {
-          if (countdownSeconds == 0) {
-            setState(() {
-              timer.cancel();
-            });
-          } else {
-            setState(() {
-              countdownSeconds--;
-            });
-
-            // play countdown if ending noise hasn't started
-
-            // if (countdownSeconds <= 5) {
-            //   if (countdownNoiseSelection[5 - countdownSeconds] != null) {
-            //     soundManagers[5 - countdownSeconds]
-            //         .playLocal(countdownNoiseSelection[5 - countdownSeconds]);
-            //   }
-            // }
-
-          }
-        },
-      );
-      bool endingNoiseStarted = false;
-      while (countdownSeconds > 0) {
-        // check if ending noise should be played
-        if (!endingNoises[0][0]) {
-          double elapsedSeconds = DateTime.now()
-                  .difference(startTime.add(Duration(seconds: 1)))
-                  .inMilliseconds /
-              1000.0;
-          double remainingSeconds = countdownTimer.toDouble() - elapsedSeconds;
-          List endingNoise = endingNoises.firstWhere((x) => x[0]);
-          if (!endingNoiseStarted && endingNoise[3] > remainingSeconds) {
-            soundManagers[0].playLocal('${endingNoise[2]}.wav');
-            endingNoiseStarted = true;
-          }
-        }
-
-        await Future.delayed(Duration(milliseconds: 200));
-      }
-
-      flashAnimationController.forward();
-
-      if (shutterNoise[1]) {
-        shutterSoundManager.playLocal('camera-dslr.wav');
-      } else if (shutterNoise[2]) {
-        shutterSoundManager.playLocal('camera-modern.wav');
-      } else if (shutterNoise[3]) {
-        shutterSoundManager.playLocal('camera-minolta.wav');
-      } else if (shutterNoise[4]) {
-        shutterSoundManager.playLocal('camera-polaroid.wav');
-      }
-
-      setState(() {
-        transcription = '';
-      });
-
       await cameraController.takePicture(path).then((value) {
         print(path);
         Navigator.push(
@@ -381,7 +395,7 @@ class _CameraScreenState extends State<CameraScreen>
             size: 70,
           ),
           onPressed: () {
-            HapticFeedback.vibrate();
+            softVibrate();
             onCapture(context);
           },
         ));
@@ -404,7 +418,7 @@ class _CameraScreenState extends State<CameraScreen>
               ),
               backgroundColor: Colors.white,
               onPressed: () {
-                HapticFeedback.vibrate();
+                softVibrate();
                 showDialog<Null>(
                   context: context,
                   builder: (BuildContext context) {
@@ -439,8 +453,6 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   statusListener(status) async {
-    print(
-        'incoming status is: $status ||| will listen? ${!activatedOrGaveUp && status == 'notListening'} ||| will stop? $activatedOrGaveUp');
     if (!activatedOrGaveUp && status == 'notListening') {
       await Future.delayed(Duration(milliseconds: 100));
       speech.listen(
@@ -467,9 +479,12 @@ class _CameraScreenState extends State<CameraScreen>
 
   resultListener(result) {
     setState(() {
-      transcription = transcription + ' ' + result.recognizedWords;
-      transcription = transcription.trim();
-      print('t AFTER: $transcription');
+      newTranscription = result.recognizedWords;
+      if (result.finalResult) {
+        transcription = transcription + ' ' + result.recognizedWords;
+        transcription = transcription.trim();
+        newTranscription = '';
+      }
       if (voiceActivations[0][0]) {
         return;
       } else {
@@ -481,7 +496,6 @@ class _CameraScreenState extends State<CameraScreen>
         }
       }
       if (result.finalResult && activatedOrGaveUp) {
-        print('listening complete');
         fadeAnimationController.forward();
       }
     });
@@ -495,10 +509,8 @@ class _CameraScreenState extends State<CameraScreen>
         transcription = '';
       });
       speech.stop();
-      print('try and fix');
       speech.listen(
         onResult: resultListener,
-        // listenMode: ListenMode.dictation,
       );
     } else {
       print("The user has denied the use of speech recognition.");
@@ -528,8 +540,7 @@ class _CameraScreenState extends State<CameraScreen>
         correctWord3 = correctWords[0].toUpperCase();
       }
     }
-    // transcription = 'reasonable length words these strawberry fields';
-    List words = transcription.split(' ');
+    List words = (transcription + newTranscription).trim().split(' ');
     String word1 = words[max(0, words.length - 3)].toUpperCase();
     String word2 = words[max(0, words.length - 2)].toUpperCase();
     String word3 = words[max(0, words.length - 1)].toUpperCase();
@@ -653,12 +664,14 @@ class _CameraScreenState extends State<CameraScreen>
                             color: Theme.of(context).accentColor,
                           ),
                           onChanged: (int newValue) {
-                            HapticFeedback.vibrate();
+                            softVibrate();
                             setState(() {
                               countdownTimer = newValue;
                               fadeAnimationController = AnimationController(
                                   duration: Duration(seconds: newValue),
                                   vsync: this);
+                              fadeAnimation = IntTween(begin: 200, end: 0)
+                                  .animate(fadeAnimationController);
                               // clear messages in other sections
                               clearMessagesExcept('countdown');
                               if (!countdownNoises[0][0] &&
@@ -723,7 +736,7 @@ class _CameraScreenState extends State<CameraScreen>
                     Switch(
                         value: giantNumbersEnabled,
                         onChanged: (bool newValue) {
-                          HapticFeedback.vibrate();
+                          softVibrate();
                           setState(() {
                             giantNumbersEnabled = newValue;
                           });
@@ -766,7 +779,7 @@ class _CameraScreenState extends State<CameraScreen>
                             countdownNoises.map((x) => x[0] as bool).toList(),
                         boxWidth: 100,
                         onPressed: (int index) {
-                          HapticFeedback.vibrate();
+                          softVibrate();
                           setState(() {
                             for (int buttonIndex = 0;
                                 buttonIndex < countdownNoises.length;
@@ -776,6 +789,14 @@ class _CameraScreenState extends State<CameraScreen>
                               } else {
                                 countdownNoises[buttonIndex][0] = false;
                               }
+                            }
+                            // play sound
+                            List countdownNoise =
+                                countdownNoises.firstWhere((x) => x[0]);
+                            sampleSoundManager.audioPlayer.stop();
+                            if (!countdownNoises[0][0]) {
+                              sampleSoundManager
+                                  .playLocal('${countdownNoise[2][0]}.wav');
                             }
                             // clear messages in other sections
                             clearMessagesExcept('countdownNoise');
@@ -835,7 +856,7 @@ class _CameraScreenState extends State<CameraScreen>
                             endingNoises.map((x) => x[0] as bool).toList(),
                         boxWidth: 100,
                         onPressed: (int index) {
-                          HapticFeedback.vibrate();
+                          softVibrate();
                           setState(() {
                             for (int buttonIndex = 0;
                                 buttonIndex < endingNoises.length;
@@ -846,13 +867,21 @@ class _CameraScreenState extends State<CameraScreen>
                                 endingNoises[buttonIndex][0] = false;
                               }
                             }
+                            // play sound
+                            List endingNoise =
+                                endingNoises.firstWhere((x) => x[0]);
+                            sampleSoundManager.audioPlayer.stop();
+                            if (!endingNoises[0][0]) {
+                              sampleSoundManager
+                                  .playLocal('${endingNoise[2]}.wav');
+                            }
                             // clear messages in other sections
                             clearMessagesExcept('endingNoise');
                             // if selected
                             if (!endingNoises[0][0]) {
                               int endingNoiseIndex = endingNoises
                                   .indexWhere((endingNoise) => endingNoise[0]);
-                              double endingNoiseDuration =
+                              var endingNoiseDuration =
                                   endingNoises[endingNoiseIndex][3];
                               if (countdownTimer < endingNoiseDuration) {
                                 int minRequiredCountdown = 0;
@@ -899,7 +928,7 @@ class _CameraScreenState extends State<CameraScreen>
                             voiceActivations.map((x) => x[0] as bool).toList(),
                         boxWidth: 200,
                         onPressed: (int index) {
-                          HapticFeedback.vibrate();
+                          softVibrate();
                           setState(() {
                             for (int buttonIndex = 0;
                                 buttonIndex < voiceActivations.length;
@@ -941,7 +970,7 @@ class _CameraScreenState extends State<CameraScreen>
                         ],
                         isSelected: shutterNoise,
                         onPressed: (int index) {
-                          HapticFeedback.vibrate();
+                          softVibrate();
                           setState(() {
                             for (int buttonIndex = 0;
                                 buttonIndex < shutterNoise.length;
@@ -966,7 +995,7 @@ class _CameraScreenState extends State<CameraScreen>
           Container(
             child: FlatButton(
               onPressed: () {
-                HapticFeedback.vibrate();
+                softVibrate();
                 clearMessagesExcept('');
                 Navigator.of(context).pop();
               },
@@ -1028,7 +1057,7 @@ class _CameraScreenState extends State<CameraScreen>
               ),
               backgroundColor: Colors.white,
               onPressed: () {
-                HapticFeedback.vibrate();
+                softVibrate();
                 onSwitchCamera();
               },
             )
@@ -1117,7 +1146,7 @@ class _CameraScreenState extends State<CameraScreen>
     }
     if (!voiceActivations[0][0]) {
       addFieldValue(fields, values, 'VOICE ACTIVATION',
-          voiceActivations.firstWhere((x) => x[0])[1].toUpperCase());
+          '"${voiceActivations.firstWhere((x) => x[0])[1].toUpperCase()}"');
     }
     return Transform.rotate(
       angle: portraitAngle ? 0 : pi / 2,
@@ -1221,6 +1250,6 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   showCameraException(e) {
-    String errorText = 'Error ${e.code} \nError message: ${e.description}';
+    print('Error $e');
   }
 }

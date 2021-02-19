@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:flutter/services.dart';
+import 'package:vibration/vibration.dart';
 import 'package:gallery_saver/gallery_saver.dart';
 
 import 'package:esys_flutter_share/esys_flutter_share.dart';
@@ -47,7 +47,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                     ),
                     color: Colors.redAccent[100],
                     onPressed: () {
-                      HapticFeedback.vibrate();
+                      softVibrate();
                       if (!saved) {
                         showDialog<Null>(
                           context: context,
@@ -64,7 +64,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                               actions: <Widget>[
                                 FlatButton(
                                   onPressed: () {
-                                    HapticFeedback.vibrate();
+                                    softVibrate();
                                     Navigator.of(context).pop();
                                   },
                                   child: Text(
@@ -74,7 +74,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                                 ),
                                 FlatButton(
                                   onPressed: () {
-                                    HapticFeedback.vibrate();
+                                    softVibrate();
                                     Navigator.of(context).pop();
                                     Navigator.of(context).pop();
                                   },
@@ -111,7 +111,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                     onPressed: saved
                         ? () {}
                         : () {
-                            HapticFeedback.vibrate();
+                            softVibrate();
                             GallerySaver.saveImage(widget.imgPath);
                             setState(() {
                               saved = true;
@@ -130,7 +130,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                     ),
                     color: Colors.greenAccent,
                     onPressed: () {
-                      HapticFeedback.vibrate();
+                      softVibrate();
                       getBytes().then((bytes) {
                         Share.file('Share via', widget.fileName,
                             bytes.buffer.asUint8List(), 'image/path');
@@ -144,6 +144,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
         ),
       ),
     );
+  }
+
+  softVibrate() {
+    Vibration.vibrate(amplitude: 128, duration: 100);
   }
 
   Future getBytes() async {

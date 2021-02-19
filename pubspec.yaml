@@ -25,6 +25,7 @@ dependencies:
   gallery_saver: ^2.0.3
   speech_to_text: ^3.1.0
   auto_size_text: ^2.1.0
+  vibration: ^1.7.3
 
 dev_dependencies:
   flutter_launcher_icons: "^0.8.0"
