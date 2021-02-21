@@ -10,6 +10,7 @@ import 'package:sensors/sensors.dart';
 import 'package:flutter/services.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:auto_size_text/auto_size_text.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 import '../sound_manager.dart';
 import 'package:everyone_look_at_the_camera/components/wrap_toggle_text_buttons.dart';
@@ -1202,6 +1203,17 @@ class _CameraScreenState extends State<CameraScreen>
             Align(
               alignment: Alignment.center,
               child: voiceRecognition(),
+            ),
+            FlatButton(
+              onPressed: () {
+                print('crashing');
+                FirebaseCrashlytics.instance.crash();
+              },
+              child: Text('crash',
+                  style: TextStyle(
+                    fontSize: 80,
+                    color: Colors.white,
+                  )),
             ),
             takingPhoto
                 ? Container()
