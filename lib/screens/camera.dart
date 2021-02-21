@@ -1204,17 +1204,6 @@ class _CameraScreenState extends State<CameraScreen>
               alignment: Alignment.center,
               child: voiceRecognition(),
             ),
-            FlatButton(
-              onPressed: () {
-                print('crashing');
-                FirebaseCrashlytics.instance.crash();
-              },
-              child: Text('crash',
-                  style: TextStyle(
-                    fontSize: 80,
-                    color: Colors.white,
-                  )),
-            ),
             takingPhoto
                 ? Container()
                 : Align(
