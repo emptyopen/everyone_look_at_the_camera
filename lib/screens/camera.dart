@@ -10,7 +10,6 @@ import 'package:sensors/sensors.dart';
 import 'package:flutter/services.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:auto_size_text/auto_size_text.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 import '../sound_manager.dart';
 import 'package:everyone_look_at_the_camera/components/wrap_toggle_text_buttons.dart';
@@ -28,7 +27,7 @@ class _CameraScreenState extends State<CameraScreen>
   int selectedCameraIndex;
   String imgPath;
   bool takingPhoto = false;
-  bool portraitAngle = false;
+  String angle = 'portrait';
   List<int> countdownChoices = [0, 3, 5, 7, 10, 15];
   int countdownTimer = 3;
   String countdownMessage;
@@ -144,6 +143,8 @@ class _CameraScreenState extends State<CameraScreen>
   String transcription = '';
   String newTranscription = '';
   bool activatedOrGaveUp = false;
+  String voiceFontFamily = 'BebasNeue';
+  int numPhotos = 1;
 
   @override
   void initState() {
@@ -154,7 +155,7 @@ class _CameraScreenState extends State<CameraScreen>
         setState(() {
           selectedCameraIndex = 1;
         });
-        initCamera(cameras[selectedCameraIndex]).then((value) {});
+        initCamera(cameras[selectedCameraIndex]); //.then((value) {});
       } else {
         print('No camera available');
       }
@@ -186,6 +187,23 @@ class _CameraScreenState extends State<CameraScreen>
         }),
       ),
     );
+    // forced landscape
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  }
+
+  playShutter() {
+    if (shutterNoise[1]) {
+      shutterSoundManager.playLocal('camera-dslr.wav');
+    } else if (shutterNoise[2]) {
+      shutterSoundManager.playLocal('camera-modern.wav');
+    } else if (shutterNoise[3]) {
+      shutterSoundManager.playLocal('camera-minolta.wav');
+    } else if (shutterNoise[4]) {
+      shutterSoundManager.playLocal('camera-polaroid.wav');
+    }
   }
 
   Future initCamera(CameraDescription cameraDescription) async {
@@ -218,19 +236,10 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   softVibrate() {
-    Vibration.vibrate(amplitude: 50, duration: 50);
+    Vibration.vibrate(amplitude: 30, duration: 50);
   }
 
   onCapture(context) async {
-    final p = await getTemporaryDirectory();
-    final name = 'ELATC-' +
-        DateTime.now()
-            .toString()
-            .replaceAll(' ', 'T')
-            .replaceAll(':', '-')
-            .replaceAll('.', '-');
-    final path = "${p.path}/$name.png";
-
     setState(() {
       takingPhoto = true;
       activatedOrGaveUp = false;
@@ -320,18 +329,6 @@ class _CameraScreenState extends State<CameraScreen>
       await Future.delayed(Duration(milliseconds: 100));
     }
 
-    flashAnimationController.forward();
-
-    if (shutterNoise[1]) {
-      shutterSoundManager.playLocal('camera-dslr.wav');
-    } else if (shutterNoise[2]) {
-      shutterSoundManager.playLocal('camera-modern.wav');
-    } else if (shutterNoise[3]) {
-      shutterSoundManager.playLocal('camera-minolta.wav');
-    } else if (shutterNoise[4]) {
-      shutterSoundManager.playLocal('camera-polaroid.wav');
-    }
-
     // reset voice activation transcription
     setState(() {
       transcription = '';
@@ -339,17 +336,34 @@ class _CameraScreenState extends State<CameraScreen>
     });
 
     try {
-      await cameraController.takePicture(path).then((value) {
-        print(path);
-        Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (context) => PreviewScreen(
-                      imgPath: path,
-                      fileName: "$name.png",
-                    )));
+      List<String> fileNames = [];
+      List<String> paths = [];
+      for (int i = 0; i < numPhotos; i++) {
+        flashAnimationController.forward();
+        var p = await getTemporaryDirectory();
+        var name = 'ELATC-' +
+            DateTime.now()
+                .toString()
+                .replaceAll(' ', 'T')
+                .replaceAll(':', '-')
+                .replaceAll('.', '-');
+        var path = "${p.path}/$name.png";
+        playShutter();
+        await cameraController.takePicture(path);
+        fileNames.add("$name.png");
+        paths.add(path);
         flashAnimationController.reverse();
-      });
+        if (i < numPhotos - 1) {
+          await Future.delayed(Duration(seconds: 1));
+        }
+      }
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => PreviewScreen(
+                    imgPaths: paths,
+                    fileNames: fileNames,
+                  )));
     } catch (e) {
       showCameraException(e);
     }
@@ -518,6 +532,32 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
+  getAngle() {
+    if (angle == 'portrait') {
+      return 0.0;
+    } else if (angle == 'reversedPortrait') {
+      return pi;
+    } else if (angle == 'landscape') {
+      return pi / 2;
+    } else {
+      return -pi / 2;
+    }
+  }
+
+  getOffset(index) {
+    var width = MediaQuery.of(context).size.width;
+    // print(angle);
+    if (angle == 'portrait') {
+      return Offset(0, -100 - (10.0 * index));
+    } else if (angle == 'reversedPortrait') {
+      return Offset(0, 30 + (30.0 * index));
+    } else if (angle == 'landscape') {
+      return Offset(0 - (30.0 * index), (index - 1) * width / 3);
+    } else {
+      return Offset(-240 + (230.0 * index), (index - 1) * width / 3);
+    }
+  }
+
   voiceRecognition() {
     var width = MediaQuery.of(context).size.width;
     String correctWord1;
@@ -541,10 +581,17 @@ class _CameraScreenState extends State<CameraScreen>
         correctWord3 = correctWords[0].toUpperCase();
       }
     }
+    transcription = 'reasonable length words';
+    newTranscription = '';
     List words = (transcription + newTranscription).trim().split(' ');
     String word1 = words[max(0, words.length - 3)].toUpperCase();
     String word2 = words[max(0, words.length - 2)].toUpperCase();
     String word3 = words[max(0, words.length - 1)].toUpperCase();
+    if (angle == 'reversedPortrait') {
+      String tempWord = word1;
+      word1 = word3;
+      word3 = tempWord;
+    }
     if (words.length < 3) {
       word2 = '';
       word3 = '';
@@ -552,14 +599,26 @@ class _CameraScreenState extends State<CameraScreen>
     if (words.length < 2) {
       word3 = '';
     }
+    bool allWordsCorrect = (correctWord1 == word1 || correctWord1 == null) &&
+        (correctWord2 == word2 || correctWord2 == null) &&
+        (correctWord3 == word3 || correctWord3 == null);
+    voiceFontFamily = 'Righteous';
+    Color gotItColor = Colors.pink;
     return Container(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // Text(
+          //   '$_accelerometerValues',
+          //   style: TextStyle(
+          //     fontSize: 30,
+          //     color: Colors.red,
+          //   ),
+          // ),
           Transform.rotate(
-            angle: portraitAngle ? 0 : pi / 2,
+            angle: getAngle(),
             child: Transform.translate(
-              offset: portraitAngle ? Offset(0, -140) : Offset(-30, -width / 3),
+              offset: getOffset(0),
               child: Container(
                 height: width / 3,
                 child: Center(
@@ -568,9 +627,10 @@ class _CameraScreenState extends State<CameraScreen>
                     maxLines: 1,
                     textAlign: TextAlign.center,
                     style: TextStyle(
+                      fontFamily: voiceFontFamily,
                       fontSize: 200,
-                      color: word1 == correctWord1
-                          ? Colors.red.withAlpha(fadeAnimation.value)
+                      color: word1 == correctWord1 && allWordsCorrect
+                          ? gotItColor.withAlpha(fadeAnimation.value)
                           : Colors.white.withAlpha(fadeAnimation.value),
                     ),
                   ),
@@ -579,9 +639,9 @@ class _CameraScreenState extends State<CameraScreen>
             ),
           ),
           Transform.rotate(
-            angle: portraitAngle ? 0 : pi / 2,
+            angle: getAngle(),
             child: Transform.translate(
-              offset: portraitAngle ? Offset(0, -120) : Offset(-60, 0),
+              offset: getOffset(1),
               child: Container(
                 height: width / 3,
                 child: Center(
@@ -590,9 +650,10 @@ class _CameraScreenState extends State<CameraScreen>
                     maxLines: 1,
                     textAlign: TextAlign.center,
                     style: TextStyle(
+                      fontFamily: voiceFontFamily,
                       fontSize: 200,
-                      color: word2 == correctWord2
-                          ? Colors.red.withAlpha(fadeAnimation.value)
+                      color: word2 == correctWord2 && allWordsCorrect
+                          ? gotItColor.withAlpha(fadeAnimation.value)
                           : Colors.white.withAlpha(fadeAnimation.value),
                     ),
                   ),
@@ -601,9 +662,9 @@ class _CameraScreenState extends State<CameraScreen>
             ),
           ),
           Transform.rotate(
-            angle: portraitAngle ? 0 : pi / 2,
+            angle: getAngle(),
             child: Transform.translate(
-              offset: portraitAngle ? Offset(0, -90) : Offset(-90, width / 3),
+              offset: getOffset(2),
               child: Container(
                 height: width / 3,
                 child: Center(
@@ -612,9 +673,10 @@ class _CameraScreenState extends State<CameraScreen>
                     maxLines: 1,
                     textAlign: TextAlign.center,
                     style: TextStyle(
+                      fontFamily: voiceFontFamily,
                       fontSize: 200,
-                      color: word3 == correctWord3
-                          ? Colors.red.withAlpha(fadeAnimation.value)
+                      color: word3 == correctWord3 && allWordsCorrect
+                          ? gotItColor.withAlpha(fadeAnimation.value)
                           : Colors.white.withAlpha(fadeAnimation.value),
                     ),
                   ),
@@ -964,10 +1026,10 @@ class _CameraScreenState extends State<CameraScreen>
                       WrapToggleTextButtons(
                         textList: [
                           'None',
-                          '"dslr"',
-                          '"modern"',
-                          '"minolta"',
-                          '"polaroid"',
+                          'dslr',
+                          'modern',
+                          'minolta',
+                          'polaroid',
                         ],
                         isSelected: shutterNoise,
                         onPressed: (int index) {
@@ -984,6 +1046,44 @@ class _CameraScreenState extends State<CameraScreen>
                             }
                           });
                         },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(height: 10),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.grey,
+                  ),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(10),
+                  child: Column(
+                    children: [
+                      Text('Number of photos'),
+                      DropdownButton<int>(
+                        value: numPhotos,
+                        elevation: 16,
+                        style: TextStyle(color: Theme.of(context).accentColor),
+                        underline: Container(
+                          height: 2,
+                          color: Theme.of(context).accentColor,
+                        ),
+                        onChanged: (int newValue) {
+                          setState(() {
+                            numPhotos = newValue;
+                          });
+                        },
+                        items: <int>[1, 2, 3, 4, 5]
+                            .map<DropdownMenuItem<int>>((int value) {
+                          return DropdownMenuItem<int>(
+                            value: value,
+                            child: Text(value.toString()),
+                          );
+                        }).toList(),
                       ),
                     ],
                   ),
@@ -1071,13 +1171,24 @@ class _CameraScreenState extends State<CameraScreen>
   Widget countdown() {
     var width = MediaQuery.of(context).size.width;
     if (_accelerometerValues == null) {
-      portraitAngle = true;
+      angle = 'portrait';
     } else {
-      if (_accelerometerValues[1] > 6 && !portraitAngle) {
-        portraitAngle = true;
+      // hysteresis
+      if (_accelerometerValues[1] > 6 && angle != 'portrait') {
+        angle = 'portrait';
       }
-      if (_accelerometerValues[1] < 4.5 && portraitAngle) {
-        portraitAngle = false;
+      if (_accelerometerValues[1] < -6 && angle != 'reversedPortrait') {
+        angle = 'reversedPortrait';
+      }
+      if (_accelerometerValues[1] < 4.5 &&
+          _accelerometerValues[0] > 3 &&
+          angle != 'landscape') {
+        angle = 'landscape';
+      }
+      if (_accelerometerValues[1] < 4.5 &&
+          _accelerometerValues[0] < -3 &&
+          angle != 'reversedLandscape') {
+        angle = 'reversedLandscape';
       }
     }
     if (countdownSeconds == null ||
@@ -1086,7 +1197,7 @@ class _CameraScreenState extends State<CameraScreen>
       return Container();
     }
     return Transform.rotate(
-      angle: portraitAngle ? 0 : pi / 2,
+      angle: getAngle(), //portraitAngle ? 0 : pi / 2,
       child: Text(
         '$countdownSeconds',
         textScaleFactor: 1,
@@ -1136,7 +1247,6 @@ class _CameraScreenState extends State<CameraScreen>
     if (giantNumbersEnabled) {
       addFieldValue(fields, values, 'GIANT NUMBERS', 'ON');
     }
-    // TODO: display exact
     if (!countdownNoises[0][0]) {
       addFieldValue(fields, values, 'COUNTDOWN NOISE',
           countdownNoises.firstWhere((x) => x[0])[1].toUpperCase());
@@ -1149,8 +1259,11 @@ class _CameraScreenState extends State<CameraScreen>
       addFieldValue(fields, values, 'VOICE ACTIVATION',
           '"${voiceActivations.firstWhere((x) => x[0])[1].toUpperCase()}"');
     }
+    if (numPhotos != 1) {
+      addFieldValue(fields, values, 'NUM PHOTOS', '$numPhotos');
+    }
     return Transform.rotate(
-      angle: portraitAngle ? 0 : pi / 2,
+      angle: getAngle(), //portraitAngle ? 0 : pi / 2,
       child: Container(
         decoration: BoxDecoration(
           border: Border.all(color: Colors.white),
@@ -1197,8 +1310,11 @@ class _CameraScreenState extends State<CameraScreen>
             ),
             Positioned(
               child: takingPhoto ? Container() : settingsPreview(),
-              bottom: portraitAngle ? 180 : 220,
-              right: portraitAngle ? 20 : 0,
+              bottom: angle == 'portrait' || angle == 'reversedPortrait'
+                  ? 180
+                  : 220,
+              right:
+                  angle == 'portrait' || angle == 'reversedPortrait' ? 20 : 0,
             ),
             Align(
               alignment: Alignment.center,
@@ -1250,6 +1366,7 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   showCameraException(e) {
-    print('Error $e');
+    print('!!!!!!! Camera Error $e');
+    initCamera(cameras[selectedCameraIndex]);
   }
 }

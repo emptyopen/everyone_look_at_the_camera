@@ -30,7 +30,7 @@ class _WrapToggleTextButtonsState extends State<WrapToggleTextButtons> {
         index++;
         return TextToggleButton(
           active: widget.isSelected[index],
-          text: text,
+          text: index == 0 ? text : '"$text"',
           width: widget.boxWidth,
           onTap: widget.onPressed,
           index: index,
