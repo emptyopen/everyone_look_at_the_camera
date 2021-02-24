@@ -581,8 +581,8 @@ class _CameraScreenState extends State<CameraScreen>
         correctWord3 = correctWords[0].toUpperCase();
       }
     }
-    transcription = 'reasonable length words';
-    newTranscription = '';
+    // transcription = 'reasonable length words';
+    // newTranscription = '';
     List words = (transcription + newTranscription).trim().split(' ');
     String word1 = words[max(0, words.length - 3)].toUpperCase();
     String word2 = words[max(0, words.length - 2)].toUpperCase();
@@ -1197,7 +1197,7 @@ class _CameraScreenState extends State<CameraScreen>
       return Container();
     }
     return Transform.rotate(
-      angle: getAngle(), //portraitAngle ? 0 : pi / 2,
+      angle: getAngle(),
       child: Text(
         '$countdownSeconds',
         textScaleFactor: 1,
