@@ -1219,7 +1219,6 @@ class _CameraScreenState extends State<CameraScreen>
                           cameraToggle(),
                           cameraControl(context),
                           settingsControl(context),
-                          // Spacer(),
                         ],
                       ),
                     ),

@@ -45,5 +45,25 @@ flutter_icons:
 flutter:
   uses-material-design: true
 
+  fonts:
+    - family: AkayaKanadaka
+      fonts:
+        - asset: assets/fonts/AkayaKanadaka-Regular.ttf
+    - family: BebasNeue
+      fonts:
+        - asset: assets/fonts/BebasNeue-Regular.ttf
+    - family: Comfortaa
+      fonts:
+        - asset: assets/fonts/Comfortaa-VariableFont_wght.ttf
+    - family: FredokaOne
+      fonts:
+        - asset: assets/fonts/FredokaOne-Regular.ttf
+    - family: Oswald
+      fonts:
+        - asset: assets/fonts/BebaOswald-VariableFont_wghtsNeue-Regular.ttf
+    - family: Righteous
+      fonts:
+        - asset: assets/fonts/Righteous-Regular.ttf
+
   assets:
-    - assets/
+    - assets/sounds/

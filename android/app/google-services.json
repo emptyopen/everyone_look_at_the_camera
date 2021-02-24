@@ -49,6 +49,51 @@
           ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:548112815437:android:4a03139cf5916666561304",
+        "android_client_info": {
+          "package_name": "com.takaomatt.everyone_look_at_the_camera"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "548112815437-p20e8prc7so1sabtps46oi9vjngj5qe1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.takaomatt.everyone_look_at_the_camera",
+            "certificate_hash": "958e8d2d8b63cf18e3ba0fd7fe93b0346d567e7e"
+          }
+        },
+        {
+          "client_id": "548112815437-f8k24eaijtglutr84b2f2kp9o7oaasfs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDb03Z1GcDm4KvppCNj7vHYcElpkEo9q0w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "548112815437-f8k24eaijtglutr84b2f2kp9o7oaasfs.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "548112815437-gom5g8bb96p508c5ag61b5kg6lp9hppp.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.takaomatt.everyoneLookAtTheCamera",
+                "app_store_id": "1553865534"
+              }
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"
