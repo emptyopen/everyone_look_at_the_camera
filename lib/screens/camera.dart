@@ -10,6 +10,7 @@ import 'package:sensors/sensors.dart';
 import 'package:flutter/services.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:auto_size_text/auto_size_text.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../sound_manager.dart';
 import 'package:everyone_look_at_the_camera/components/wrap_toggle_text_buttons.dart';
@@ -51,47 +52,48 @@ class _CameraScreenState extends State<CameraScreen>
         'countdown-three',
         'countdown-two',
         'countdown-one',
-      ]
+      ],
+      ['reduce'],
     ],
     [
       false,
       'Plucks',
-      ['plucked1', 'plucked2']
+      ['plucked1', 'plucked2'],
     ],
     [
       false,
       'Light Ring',
-      ['beep1']
+      ['beep1'],
     ],
     [
       false,
       'Asteroid Gun',
-      ['asteroid-gun']
+      ['asteroid-gun'],
     ],
     [
       false,
       'Upward Beep',
-      ['upward-beep']
+      ['upward-beep'],
     ],
     [
       false,
       'Upward Chime',
-      ['up-chime']
+      ['up-chime'],
     ],
     [
       false,
       'Info Bleep',
-      ['info-bleep']
+      ['info-bleep'],
     ],
     [
       false,
       'Sneeze',
-      ['sneeze']
+      ['sneeze'],
     ],
     [
       false,
       'Small Alarm',
-      ['alarm-short-b']
+      ['alarm-short-b'],
     ],
   ];
   List endingNoises = [
@@ -144,7 +146,9 @@ class _CameraScreenState extends State<CameraScreen>
   String newTranscription = '';
   bool activatedOrGaveUp = false;
   String voiceFontFamily = 'BebasNeue';
-  int numPhotos = 1;
+  int numPhotos = 2;
+  bool cancelled = false;
+  SharedPreferences prefs;
 
   @override
   void initState() {
@@ -192,6 +196,12 @@ class _CameraScreenState extends State<CameraScreen>
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
     ]);
+    // shared prefs
+    initPrefs();
+  }
+
+  initPrefs() async {
+    prefs = await SharedPreferences.getInstance();
   }
 
   playShutter() {
@@ -239,10 +249,20 @@ class _CameraScreenState extends State<CameraScreen>
     Vibration.vibrate(amplitude: 30, duration: 50);
   }
 
+  cancelPhoto() {
+    setState(() {
+      takingPhoto = false;
+      countdownSeconds = 0;
+      transcription = '';
+    });
+    speech.stop();
+  }
+
   onCapture(context) async {
     setState(() {
       takingPhoto = true;
       activatedOrGaveUp = false;
+      cancelled = false;
     });
 
     // speech recognition holding pattern
@@ -252,7 +272,11 @@ class _CameraScreenState extends State<CameraScreen>
       recognizeSpeech();
       while (activatedOrGaveUp == false &&
           DateTime.now().difference(start).inSeconds < 30) {
-        await Future.delayed(Duration(seconds: 1));
+        if (cancelled) {
+          cancelPhoto();
+          return;
+        }
+        await Future.delayed(Duration(milliseconds: 200));
       }
       activatedOrGaveUp = true;
       speech.stop();
@@ -272,12 +296,18 @@ class _CameraScreenState extends State<CameraScreen>
     List endingNoise = endingNoises.firstWhere((x) => x[0]);
     int numSecondsOfCountdownNoises =
         (countdownTimer - endingNoise[3]).ceil() + 1;
+    List reducedCountdownNoises = countdownNoise[2];
+    if (countdownNoise.length > 3) {
+      // 4th variable assumes reduction
+      reducedCountdownNoises = reducedCountdownNoises
+          .sublist(reducedCountdownNoises.length - countdownTimer);
+    }
     if (!countdownNoises[0][0]) {
       for (int i = 0; i < numSecondsOfCountdownNoises; i++) {
         countdownSoundManagers.add(SoundManager());
-        countdownSoundOrchestration.add(countdownNoise[2][patternIndex]);
+        countdownSoundOrchestration.add(reducedCountdownNoises[patternIndex]);
         patternIndex += 1;
-        if (patternIndex == countdownNoise[2].length) {
+        if (patternIndex == reducedCountdownNoises.length) {
           patternIndex = 0;
         }
       }
@@ -291,6 +321,11 @@ class _CameraScreenState extends State<CameraScreen>
     Timer.periodic(
       oneSec,
       (Timer timer) {
+        if (cancelled) {
+          setState(() {
+            timer.cancel();
+          });
+        }
         if (countdownSeconds == 0) {
           setState(() {
             timer.cancel();
@@ -313,6 +348,10 @@ class _CameraScreenState extends State<CameraScreen>
     );
     while (countdownSeconds > 0) {
       // check if ending noise should be played
+      if (cancelled) {
+        cancelPhoto();
+        return;
+      }
       if (!endingNoises[0][0]) {
         double elapsedSeconds = DateTime.now()
                 .difference(startTime.add(Duration(seconds: 1)))
@@ -335,6 +374,11 @@ class _CameraScreenState extends State<CameraScreen>
       fadeAnimationController.reverse();
     });
 
+    if (cancelled) {
+      cancelPhoto();
+      return;
+    }
+
     try {
       List<String> fileNames = [];
       List<String> paths = [];
@@ -353,6 +397,10 @@ class _CameraScreenState extends State<CameraScreen>
         fileNames.add("$name.png");
         paths.add(path);
         flashAnimationController.reverse();
+        if (cancelled) {
+          cancelPhoto();
+          return;
+        }
         if (i < numPhotos - 1) {
           await Future.delayed(Duration(seconds: 1));
         }
@@ -370,6 +418,7 @@ class _CameraScreenState extends State<CameraScreen>
 
     setState(() {
       takingPhoto = false;
+      cancelled = false;
     });
   }
 
@@ -792,19 +841,37 @@ class _CameraScreenState extends State<CameraScreen>
                   ),
                   borderRadius: BorderRadius.circular(5),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('Giant numbers'),
-                    Switch(
-                        value: giantNumbersEnabled,
-                        onChanged: (bool newValue) {
-                          softVibrate();
+                child: Padding(
+                  padding: EdgeInsets.all(10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('Number of photos'),
+                      SizedBox(width: 10),
+                      DropdownButton<int>(
+                        value: numPhotos,
+                        elevation: 16,
+                        style: TextStyle(color: Theme.of(context).accentColor),
+                        underline: Container(
+                          height: 2,
+                          color: Theme.of(context).accentColor,
+                        ),
+                        onChanged: (int newValue) {
                           setState(() {
-                            giantNumbersEnabled = newValue;
+                            numPhotos = newValue;
                           });
-                        }),
-                  ],
+                        },
+                        items: <int>[1, 2, 3, 4, 5]
+                            .map<DropdownMenuItem<int>>((int value) {
+                          return DropdownMenuItem<int>(
+                            value: value,
+                            child: Text(value.toString(),
+                                style: TextStyle(fontSize: 20)),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               SizedBox(height: 10),
@@ -1059,34 +1126,19 @@ class _CameraScreenState extends State<CameraScreen>
                   ),
                   borderRadius: BorderRadius.circular(5),
                 ),
-                child: Padding(
-                  padding: EdgeInsets.all(10),
-                  child: Column(
-                    children: [
-                      Text('Number of photos'),
-                      DropdownButton<int>(
-                        value: numPhotos,
-                        elevation: 16,
-                        style: TextStyle(color: Theme.of(context).accentColor),
-                        underline: Container(
-                          height: 2,
-                          color: Theme.of(context).accentColor,
-                        ),
-                        onChanged: (int newValue) {
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('Giant numbers'),
+                    Switch(
+                        value: giantNumbersEnabled,
+                        onChanged: (bool newValue) {
+                          softVibrate();
                           setState(() {
-                            numPhotos = newValue;
+                            giantNumbersEnabled = newValue;
                           });
-                        },
-                        items: <int>[1, 2, 3, 4, 5]
-                            .map<DropdownMenuItem<int>>((int value) {
-                          return DropdownMenuItem<int>(
-                            value: value,
-                            child: Text(value.toString()),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ),
+                        }),
+                  ],
                 ),
               ),
             ],
@@ -1168,6 +1220,43 @@ class _CameraScreenState extends State<CameraScreen>
     );
   }
 
+  Widget cancelButton() {
+    return !takingPhoto
+        ? Container()
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Transform.rotate(
+                angle: getAngle(),
+                child: Container(
+                  height: 50,
+                  width: 100,
+                  decoration: BoxDecoration(
+                    border: Border.all(),
+                    borderRadius: BorderRadius.circular(5),
+                    color: Colors.red.withAlpha(100),
+                  ),
+                  child: FlatButton(
+                    onPressed: () {
+                      setState(() {
+                        cancelled = true;
+                      });
+                    },
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: 20,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 30),
+            ],
+          );
+  }
+
   Widget countdown() {
     var width = MediaQuery.of(context).size.width;
     if (_accelerometerValues == null) {
@@ -1244,9 +1333,7 @@ class _CameraScreenState extends State<CameraScreen>
     List<Widget> fields = [];
     List<Widget> values = [];
     addFieldValue(fields, values, 'TIMER', countdownTimer);
-    if (giantNumbersEnabled) {
-      addFieldValue(fields, values, 'GIANT NUMBERS', 'ON');
-    }
+    addFieldValue(fields, values, 'NUM PHOTOS', '$numPhotos');
     if (!countdownNoises[0][0]) {
       addFieldValue(fields, values, 'COUNTDOWN NOISE',
           countdownNoises.firstWhere((x) => x[0])[1].toUpperCase());
@@ -1259,11 +1346,11 @@ class _CameraScreenState extends State<CameraScreen>
       addFieldValue(fields, values, 'VOICE ACTIVATION',
           '"${voiceActivations.firstWhere((x) => x[0])[1].toUpperCase()}"');
     }
-    if (numPhotos != 1) {
-      addFieldValue(fields, values, 'NUM PHOTOS', '$numPhotos');
+    if (!giantNumbersEnabled) {
+      addFieldValue(fields, values, 'GIANT NUMBERS', 'OFF');
     }
     return Transform.rotate(
-      angle: getAngle(), //portraitAngle ? 0 : pi / 2,
+      angle: getAngle(),
       child: Container(
         decoration: BoxDecoration(
           border: Border.all(color: Colors.white),
@@ -1272,15 +1359,18 @@ class _CameraScreenState extends State<CameraScreen>
         ),
         padding: EdgeInsets.all(10),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Column(
-              // mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: fields,
             ),
             SizedBox(width: 15),
             Column(
-              // mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: values,
             ),
           ],
@@ -1308,17 +1398,19 @@ class _CameraScreenState extends State<CameraScreen>
               alignment: Alignment.center,
               child: flashBox(),
             ),
-            Positioned(
+            Align(
+              alignment: Alignment.center,
               child: takingPhoto ? Container() : settingsPreview(),
-              bottom: angle == 'portrait' || angle == 'reversedPortrait'
-                  ? 180
-                  : 220,
-              right:
-                  angle == 'portrait' || angle == 'reversedPortrait' ? 20 : 0,
             ),
             Align(
               alignment: Alignment.center,
               child: voiceRecognition(),
+            ),
+            Positioned(
+              child: cancelButton(),
+              bottom:
+                  ['portrait', 'reversedPortrait'].contains(angle) ? 20 : 50,
+              left: 20,
             ),
             takingPhoto
                 ? Container()

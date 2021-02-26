@@ -4,16 +4,17 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 // done:
-// cooler font for voice activation
-// freeze in landscape, (prevent rotation)
-// BIG: multiple photos in succession, preview needs to have scrolling views of the photos
-// allow upside down (flip text)
+// fix position of settings preview
+// add cancel button
 
 // TODO:
-// add cancel button
+// fix speech keeps recording after CANCEL
+// fix SpeechRecognitionError msg: error_busy
 // ensure that if there is a camera error, re-init camera? (prevent "camera loading" stuck)
 // BIG: saved settings, use local
 // fix 10 9 8 for durations other than 10
+
+// TODO (maybe):
 // move preview buttons up (for iphone only?)
 // sound bug - doesn't play more than once unless changing (iphone only?)
 // background color for icon

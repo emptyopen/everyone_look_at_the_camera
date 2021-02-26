@@ -135,7 +135,6 @@ class _PreviewScreenState extends State<PreviewScreen> {
         ),
       ));
     }
-    print(deleteConfirms);
     return Scaffold(
       body: Container(
         color: Colors.black,
@@ -298,7 +297,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                                         contentPadding:
                                             EdgeInsets.fromLTRB(30, 0, 30, 0),
                                         content: Text(
-                                            '\nAll photos will be deleted.'),
+                                            '\nUnsaved photos will be deleted.'),
                                         actions: <Widget>[
                                           FlatButton(
                                             onPressed: () {
