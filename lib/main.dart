@@ -4,17 +4,15 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 // done:
-// fix position of settings preview
-// add cancel button
-// fix 10 9 8 for durations other than 10
-// BIG: saved settings, use local
 
 // TODO:
-// fix speech keeps recording after CANCEL
-// fix SpeechRecognitionError msg: error_busy
+// custom phrase for speech to text
+// some visual/audio cue that speech recognition fails
+// fix SpeechRecognitionError msg: error_busy, general flow of speech still has issues
 // ensure that if there is a camera error, re-init camera? (prevent "camera loading" stuck)
 
 // TODO (maybe):
+// have an arrow point at the camera
 // add gesture to swipe on image previews
 // move preview buttons up (for iphone only?)
 // sound bug - doesn't play more than once unless changing (iphone only?)

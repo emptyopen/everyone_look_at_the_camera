@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../sound_manager.dart';
 import 'package:everyone_look_at_the_camera/components/wrap_toggle_text_buttons.dart';
@@ -222,7 +223,6 @@ class _CameraScreenState extends State<CameraScreen>
     saveIntPref('voiceActivationIndex', voiceActivationIndex);
     saveIntPref('shutterNoiseIndex', shutterNoiseIndex);
     saveIntPref('numPhotos', numPhotos);
-    print('saved prefs');
   }
 
   saveIntPref(key, value) {
@@ -283,6 +283,7 @@ class _CameraScreenState extends State<CameraScreen>
       takingPhoto = false;
       countdownSeconds = 0;
       transcription = '';
+      activatedOrGaveUp = true;
     });
     speech.stop();
   }
@@ -562,8 +563,10 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   statusListener(status) async {
+    print('-- new listening status: $status  @${DateTime.now()}');
     if (!activatedOrGaveUp && status == 'notListening') {
       await Future.delayed(Duration(milliseconds: 100));
+      print('restarting the listen');
       speech.listen(
         onResult: resultListener,
       );
@@ -574,9 +577,10 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   errorListener(error) async {
-    print('!!!! listening error: $error, gave up? $activatedOrGaveUp');
+    print('!!!! listening error: $error ||| gave up? $activatedOrGaveUp');
     if (!activatedOrGaveUp) {
       await Future.delayed(Duration(milliseconds: 100));
+      print('restarting the listen');
       speech.listen(
         onResult: resultListener,
       );
@@ -677,7 +681,7 @@ class _CameraScreenState extends State<CameraScreen>
     }
     // transcription = 'reasonable length words';
     // newTranscription = '';
-    List words = (transcription + newTranscription).trim().split(' ');
+    List words = (transcription + ' ' + newTranscription).trim().split(' ');
     String word1 = words[max(0, words.length - 3)].toUpperCase();
     String word2 = words[max(0, words.length - 2)].toUpperCase();
     String word3 = words[max(0, words.length - 1)].toUpperCase();
@@ -1286,9 +1290,9 @@ class _CameraScreenState extends State<CameraScreen>
                   height: 50,
                   width: 100,
                   decoration: BoxDecoration(
-                    border: Border.all(),
+                    border: Border.all(color: Colors.white),
                     borderRadius: BorderRadius.circular(5),
-                    color: Colors.red.withAlpha(100),
+                    color: Colors.black.withAlpha(100),
                   ),
                   child: FlatButton(
                     onPressed: () {
@@ -1300,6 +1304,7 @@ class _CameraScreenState extends State<CameraScreen>
                       'Cancel',
                       style: TextStyle(
                         fontSize: 20,
+                        color: Colors.white.withAlpha(200),
                       ),
                     ),
                   ),
@@ -1355,9 +1360,9 @@ class _CameraScreenState extends State<CameraScreen>
     );
   }
 
-  addFieldValue(fields, values, field, value) {
+  addFieldValue(fields, icons, values, field, icon, value) {
     fields.add(Container(
-      height: 20,
+      height: 30,
       child: Center(
         child: Text(
           '$field',
@@ -1368,8 +1373,18 @@ class _CameraScreenState extends State<CameraScreen>
         ),
       ),
     ));
+    icons.add(Container(
+      height: 30,
+      child: Center(
+        child: Icon(
+          icon,
+          size: 20,
+          color: Colors.white,
+        ),
+      ),
+    ));
     values.add(Container(
-      height: 20,
+      height: 30,
       child: Center(
         child: Text(
           '$value',
@@ -1384,23 +1399,42 @@ class _CameraScreenState extends State<CameraScreen>
 
   settingsPreview() {
     List<Widget> fields = [];
+    List<Widget> icons = [];
     List<Widget> values = [];
-    addFieldValue(fields, values, 'TIMER', countdownTimer);
-    addFieldValue(fields, values, 'NUM PHOTOS', '$numPhotos');
+    addFieldValue(
+        fields, icons, values, 'TIMER', MdiIcons.cameraTimer, countdownTimer);
+    addFieldValue(fields, icons, values, 'NUM PHOTOS', MdiIcons.contentCopy,
+        '$numPhotos');
     if (!countdownNoises[0][0]) {
-      addFieldValue(fields, values, 'COUNTDOWN NOISE',
+      addFieldValue(
+          fields,
+          icons,
+          values,
+          'COUNTDOWN NOISE',
+          MdiIcons.musicNote,
           countdownNoises.firstWhere((x) => x[0])[1].toUpperCase());
     }
     if (!endingNoises[0][0]) {
-      addFieldValue(fields, values, 'ENDING NOISE',
+      addFieldValue(
+          fields,
+          icons,
+          values,
+          'ENDING NOISE',
+          MdiIcons.musicNotePlus,
           endingNoises.firstWhere((x) => x[0])[1].toUpperCase());
     }
     if (!voiceActivations[0][0]) {
-      addFieldValue(fields, values, 'VOICE ACTIVATION',
+      addFieldValue(
+          fields,
+          icons,
+          values,
+          'VOICE ACTIVATION',
+          MdiIcons.textToSpeech,
           '"${voiceActivations.firstWhere((x) => x[0])[1].toUpperCase()}"');
     }
     if (!giantNumbersEnabled) {
-      addFieldValue(fields, values, 'GIANT NUMBERS', 'OFF');
+      addFieldValue(
+          fields, icons, values, 'GIANT NUMBERS', MdiIcons.formatSize, 'OFF');
     }
     return Transform.rotate(
       angle: getAngle(),
@@ -1411,20 +1445,48 @@ class _CameraScreenState extends State<CameraScreen>
           color: Colors.black.withAlpha(100),
         ),
         padding: EdgeInsets.all(10),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: fields,
+            Text(
+              'Settings',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+              ),
             ),
-            SizedBox(width: 15),
-            Column(
+            SizedBox(height: 5),
+            Container(
+              width: 150,
+              height: 1,
+              decoration: BoxDecoration(
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(height: 5),
+            Row(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
-              children: values,
+              children: [
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: fields,
+                ),
+                SizedBox(width: 10),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: icons,
+                ),
+                SizedBox(width: 10),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: values,
+                ),
+              ],
             ),
           ],
         ),
