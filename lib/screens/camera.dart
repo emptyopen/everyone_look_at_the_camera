@@ -136,7 +136,7 @@ class _CameraScreenState extends State<CameraScreen>
   AnimationController fadeAnimationController;
   SoundManager sampleSoundManager = SoundManager();
   SoundManager endingSoundManager = SoundManager();
-  SoundManager shutterSoundManager = SoundManager();
+  List<SoundManager> shutterSoundManagers = [];
   SoundManager confirmationManager = SoundManager();
   List<double> _accelerometerValues;
   List<StreamSubscription<dynamic>> _streamSubscriptions =
@@ -202,17 +202,46 @@ class _CameraScreenState extends State<CameraScreen>
 
   initPrefs() async {
     prefs = await SharedPreferences.getInstance();
+    // load prefs
+    countdownTimer = prefs.getInt('countdownTimer') ?? 3;
+    giantNumbersEnabled = prefs.getBool('giantNumbersEnabled') ?? true;
+    int countdownNoiseIndex = prefs.getInt('countdownNoiseIndex') ?? 0;
+    setTo(countdownNoises, countdownNoiseIndex);
+    int endingNoiseIndex = prefs.getInt('endingNoiseIndex') ?? 0;
+    setTo(endingNoises, endingNoiseIndex);
+    int voiceActivationIndex = prefs.getInt('voiceActivationIndex') ?? 0;
+    setTo(voiceActivations, voiceActivationIndex);
+    int shutterNoiseIndex = prefs.getInt('shutterNoiseIndex') ?? 0;
+    setTo(shutterNoise, shutterNoiseIndex);
+    numPhotos = prefs.getInt('numPhotos') ?? 2;
+    // save prefs
+    saveIntPref('countdownTimer', countdownTimer);
+    saveBoolPref('giantNumbersEnabled', giantNumbersEnabled);
+    saveIntPref('countdownNoiseIndex', countdownNoiseIndex);
+    saveIntPref('endingNoiseIndex', endingNoiseIndex);
+    saveIntPref('voiceActivationIndex', voiceActivationIndex);
+    saveIntPref('shutterNoiseIndex', shutterNoiseIndex);
+    saveIntPref('numPhotos', numPhotos);
+    print('saved prefs');
   }
 
-  playShutter() {
+  saveIntPref(key, value) {
+    prefs.setInt(key, value);
+  }
+
+  saveBoolPref(key, value) {
+    prefs.setBool(key, value);
+  }
+
+  playShutter(index) {
     if (shutterNoise[1]) {
-      shutterSoundManager.playLocal('camera-dslr.wav');
+      shutterSoundManagers[index].playLocal('camera-dslr.wav');
     } else if (shutterNoise[2]) {
-      shutterSoundManager.playLocal('camera-modern.wav');
+      shutterSoundManagers[index].playLocal('camera-modern.wav');
     } else if (shutterNoise[3]) {
-      shutterSoundManager.playLocal('camera-minolta.wav');
+      shutterSoundManagers[index].playLocal('camera-minolta.wav');
     } else if (shutterNoise[4]) {
-      shutterSoundManager.playLocal('camera-polaroid.wav');
+      shutterSoundManagers[index].playLocal('camera-polaroid.wav');
     }
   }
 
@@ -264,6 +293,12 @@ class _CameraScreenState extends State<CameraScreen>
       activatedOrGaveUp = false;
       cancelled = false;
     });
+
+    // init shutter sound manager
+    shutterSoundManagers = [];
+    for (int i = 0; i < numPhotos; i++) {
+      shutterSoundManagers.add(SoundManager());
+    }
 
     // speech recognition holding pattern
     DateTime start = DateTime.now();
@@ -392,7 +427,7 @@ class _CameraScreenState extends State<CameraScreen>
                 .replaceAll(':', '-')
                 .replaceAll('.', '-');
         var path = "${p.path}/$name.png";
-        playShutter();
+        playShutter(i);
         await cameraController.takePicture(path);
         fileNames.add("$name.png");
         paths.add(path);
@@ -513,6 +548,16 @@ class _CameraScreenState extends State<CameraScreen>
     list[0][0] = true;
     for (int i = 1; i < list.length; i++) {
       list[i][0] = false;
+    }
+  }
+
+  setTo(list, index) {
+    for (int i = 0; i < list.length; i++) {
+      if (list[i] is List) {
+        list[i][0] = index == i;
+      } else {
+        list[i] = index == i;
+      }
     }
   }
 
@@ -779,6 +824,7 @@ class _CameraScreenState extends State<CameraScreen>
                             softVibrate();
                             setState(() {
                               countdownTimer = newValue;
+                              saveIntPref('countdownTimer', countdownTimer);
                               fadeAnimationController = AnimationController(
                                   duration: Duration(seconds: newValue),
                                   vsync: this);
@@ -787,9 +833,9 @@ class _CameraScreenState extends State<CameraScreen>
                               // clear messages in other sections
                               clearMessagesExcept('countdown');
                               if (!countdownNoises[0][0] &&
-                                  countdownTimer < 5) {
+                                  countdownTimer < 3) {
                                 setToNone(countdownNoises);
-                                countdownMessage = 'Disabled noisy countdown.';
+                                countdownMessage = 'Disabled countdown noise.';
                               } else if (!endingNoises[0][0]) {
                                 if (countdownTimer <
                                     endingNoises.firstWhere((x) => x[0])[3]) {
@@ -860,6 +906,7 @@ class _CameraScreenState extends State<CameraScreen>
                           setState(() {
                             numPhotos = newValue;
                           });
+                          saveIntPref('numPhotos', numPhotos);
                         },
                         items: <int>[1, 2, 3, 4, 5]
                             .map<DropdownMenuItem<int>>((int value) {
@@ -920,6 +967,7 @@ class _CameraScreenState extends State<CameraScreen>
                                 countdownNoises[buttonIndex][0] = false;
                               }
                             }
+                            saveIntPref('countdownNoiseIndex', index);
                             // play sound
                             List countdownNoise =
                                 countdownNoises.firstWhere((x) => x[0]);
@@ -997,6 +1045,7 @@ class _CameraScreenState extends State<CameraScreen>
                                 endingNoises[buttonIndex][0] = false;
                               }
                             }
+                            saveIntPref('endingNoiseIndex', index);
                             // play sound
                             List endingNoise =
                                 endingNoises.firstWhere((x) => x[0]);
@@ -1069,6 +1118,7 @@ class _CameraScreenState extends State<CameraScreen>
                                 voiceActivations[buttonIndex][0] = false;
                               }
                             }
+                            saveIntPref('voiceActivationIndex', index);
                           });
                         },
                       ),
@@ -1111,6 +1161,7 @@ class _CameraScreenState extends State<CameraScreen>
                                 shutterNoise[buttonIndex] = false;
                               }
                             }
+                            saveIntPref('shutterNoiseIndex', index);
                           });
                         },
                       ),
@@ -1137,6 +1188,8 @@ class _CameraScreenState extends State<CameraScreen>
                           setState(() {
                             giantNumbersEnabled = newValue;
                           });
+                          saveBoolPref(
+                              'giantNumbersEnabled', giantNumbersEnabled);
                         }),
                   ],
                 ),
