@@ -7,11 +7,14 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 // TODO:
 // custom phrase for speech to text
-// some visual/audio cue that speech recognition fails
 // fix SpeechRecognitionError msg: error_busy, general flow of speech still has issues
 // ensure that if there is a camera error, re-init camera? (prevent "camera loading" stuck)
+// play shutter noises when selected
+// "have you brushed your teeth"
+// increase phrase max to 10
 
 // TODO (maybe):
+// create timer bar for voice timeout
 // have an arrow point at the camera
 // add gesture to swipe on image previews
 // move preview buttons up (for iphone only?)

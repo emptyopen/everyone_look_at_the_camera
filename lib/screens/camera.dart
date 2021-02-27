@@ -127,8 +127,6 @@ class _CameraScreenState extends State<CameraScreen>
     [false, 'cheese'],
     [false, 'strawberry fields'],
     [false, 'where is daisy'],
-    [false, 'treasure chest'],
-    [false, 'kangaroo'],
   ];
   List<bool> shutterNoise = [false, true, false, false, false];
   Animation<int> flashAnimation;
@@ -150,6 +148,9 @@ class _CameraScreenState extends State<CameraScreen>
   int numPhotos = 2;
   bool cancelled = false;
   SharedPreferences prefs;
+  List<String> customPhrases = ['', '', ''];
+  int customPhraseIndex;
+  List<bool> recordingCustomPhrases = [false, false, false];
 
   @override
   void initState() {
@@ -789,6 +790,7 @@ class _CameraScreenState extends State<CameraScreen>
 
   Widget settingsDialog() {
     var width = MediaQuery.of(context).size.width;
+
     return StatefulBuilder(builder: (context, setState) {
       return AlertDialog(
         title: Text('Camera settings:'),
@@ -1109,9 +1111,16 @@ class _CameraScreenState extends State<CameraScreen>
                             .toList(),
                         isSelected:
                             voiceActivations.map((x) => x[0] as bool).toList(),
+                        deselectAll: customPhraseIndex != null,
                         boxWidth: 200,
                         onPressed: (int index) {
                           softVibrate();
+                          if (customPhraseIndex != null) {
+                            setState(() {
+                              customPhraseIndex = null;
+                            });
+                          }
+                          saveIntPref('voiceActivationCustomIndex', null);
                           setState(() {
                             for (int buttonIndex = 0;
                                 buttonIndex < voiceActivations.length;
@@ -1124,6 +1133,25 @@ class _CameraScreenState extends State<CameraScreen>
                             }
                             saveIntPref('voiceActivationIndex', index);
                           });
+                        },
+                      ),
+                      // CUSTOM
+                      CustomVoiceActivationContainer(
+                        index: 0,
+                        customPhraseIndex: customPhraseIndex,
+                        recordingCustomPhrases: recordingCustomPhrases,
+                        customPhrases: customPhrases,
+                        callback: () {
+                          print('callback');
+                        },
+                      ),
+                      CustomVoiceActivationContainer(
+                        index: 1,
+                        customPhraseIndex: customPhraseIndex,
+                        recordingCustomPhrases: recordingCustomPhrases,
+                        customPhrases: customPhrases,
+                        callback: () {
+                          print('callback');
                         },
                       ),
                     ],
@@ -1575,5 +1603,92 @@ class _CameraScreenState extends State<CameraScreen>
   showCameraException(e) {
     print('!!!!!!! Camera Error $e');
     initCamera(cameras[selectedCameraIndex]);
+  }
+}
+
+class CustomVoiceActivationContainer extends StatefulWidget {
+  final int index;
+  final int customPhraseIndex;
+  final List recordingCustomPhrases;
+  final List customPhrases;
+  final Function callback;
+
+  CustomVoiceActivationContainer({
+    this.index,
+    this.customPhrases,
+    this.recordingCustomPhrases,
+    this.customPhraseIndex,
+    this.callback,
+  });
+
+  @override
+  _CustomVoiceActivationContainerState createState() =>
+      _CustomVoiceActivationContainerState();
+}
+
+class _CustomVoiceActivationContainerState
+    extends State<CustomVoiceActivationContainer> {
+  @override
+  Widget build(BuildContext context) {
+    print(widget.index);
+    print(widget.customPhraseIndex);
+    print(widget.recordingCustomPhrases);
+    print(widget.customPhrases);
+    print(widget.callback);
+    return Container(
+      width: 200,
+      height: 30,
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: widget.customPhraseIndex == 0
+              ? Theme.of(context).accentColor
+              : Colors.grey,
+        ),
+        borderRadius: BorderRadius.circular(5),
+      ),
+      padding: EdgeInsets.fromLTRB(10, 3, 10, 3),
+      child: InkWell(
+          child: Stack(
+            children: [
+              Align(
+                alignment: Alignment.center,
+                child: AutoSizeText(
+                  widget.customPhrases[widget.index] == ''
+                      ? 'tap to record'
+                      : '"$widget.customPhrase"',
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: widget.customPhraseIndex == 0
+                        ? Colors.black
+                        : Theme.of(context).disabledColor,
+                  ),
+                ),
+              ),
+              !widget.recordingCustomPhrases[widget.index]
+                  ? Container()
+                  : Align(
+                      alignment: Alignment.center,
+                      child: Icon(
+                        Icons.mic,
+                        color: Colors.black,
+                      ),
+                    ),
+              !widget.recordingCustomPhrases[widget.index]
+                  ? Container()
+                  : Align(
+                      alignment: Alignment.center,
+                      child: Text(
+                        widget.customPhrases[widget.index],
+                        style: TextStyle(
+                          color: Colors.red,
+                        ),
+                      ),
+                    ),
+            ],
+          ),
+          onTap: () async {
+            // do voice activation here, and pass back the values
+          }),
+    );
   }
 }

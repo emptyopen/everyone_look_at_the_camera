@@ -6,12 +6,14 @@ class WrapToggleTextButtons extends StatefulWidget {
   final List<bool> isSelected;
   final Function onPressed;
   final double boxWidth;
+  final bool deselectAll;
 
   WrapToggleTextButtons({
     @required this.textList,
     @required this.isSelected,
     @required this.onPressed,
     this.boxWidth,
+    this.deselectAll = false,
   });
 
   @override
@@ -29,7 +31,7 @@ class _WrapToggleTextButtonsState extends State<WrapToggleTextButtons> {
       children: widget.textList.map((String text) {
         index++;
         return TextToggleButton(
-          active: widget.isSelected[index],
+          active: !widget.deselectAll && widget.isSelected[index],
           text: index == 0 ? text : '"$text"',
           width: widget.boxWidth,
           onTap: widget.onPressed,

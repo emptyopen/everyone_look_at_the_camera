@@ -25,13 +25,13 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Can I use the camera please?</string>
+	<string>For taking photos</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Can I use the mic please?</string>
+	<string>For voice activation and custom phrase</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Can I save photos please?</string>
+	<string>For saving photos</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>CAn I use speech recognition?</string>
+	<string>For voice activation and custom phrase</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
