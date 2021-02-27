@@ -127,6 +127,9 @@ class _CameraScreenState extends State<CameraScreen>
     [false, 'cheese'],
     [false, 'strawberry fields'],
     [false, 'where is daisy'],
+    [false, 'custom phrase 1'],
+    [false, 'custom phrase 2'],
+    [false, 'custom phrase 3'],
   ];
   List<bool> shutterNoise = [false, true, false, false, false];
   Animation<int> flashAnimation;
@@ -148,9 +151,6 @@ class _CameraScreenState extends State<CameraScreen>
   int numPhotos = 2;
   bool cancelled = false;
   SharedPreferences prefs;
-  List<String> customPhrases = ['', '', ''];
-  int customPhraseIndex;
-  List<bool> recordingCustomPhrases = [false, false, false];
 
   @override
   void initState() {
@@ -788,6 +788,27 @@ class _CameraScreenState extends State<CameraScreen>
     );
   }
 
+  selectCallback(int index) {
+    print('selecting $index');
+    // select custom phrase index, deselect suggested phrases
+    setState(() {
+      setTo(voiceActivations, index);
+      saveIntPref('voiceActivationIndex', index);
+    });
+    print(voiceActivations);
+  }
+
+  saveCallback(int index, String phrase) {
+    print('saving $phrase for index $index');
+    setState(() {
+      voiceActivations[index][1] = phrase;
+    });
+  }
+
+  customPhraseSelected() {
+    return voiceActivations.indexWhere((element) => element[0]) < 3;
+  }
+
   Widget settingsDialog() {
     var width = MediaQuery.of(context).size.width;
 
@@ -1107,20 +1128,16 @@ class _CameraScreenState extends State<CameraScreen>
                       SizedBox(height: 10),
                       WrapToggleTextButtons(
                         textList: voiceActivations
+                            .sublist(0, 4)
                             .map((x) => x[1] as String)
                             .toList(),
-                        isSelected:
-                            voiceActivations.map((x) => x[0] as bool).toList(),
-                        deselectAll: customPhraseIndex != null,
+                        isSelected: voiceActivations
+                            .sublist(0, 4)
+                            .map((x) => x[0] as bool)
+                            .toList(),
                         boxWidth: 200,
                         onPressed: (int index) {
                           softVibrate();
-                          if (customPhraseIndex != null) {
-                            setState(() {
-                              customPhraseIndex = null;
-                            });
-                          }
-                          saveIntPref('voiceActivationCustomIndex', null);
                           setState(() {
                             for (int buttonIndex = 0;
                                 buttonIndex < voiceActivations.length;
@@ -1132,26 +1149,45 @@ class _CameraScreenState extends State<CameraScreen>
                               }
                             }
                             saveIntPref('voiceActivationIndex', index);
+                            print(voiceActivations);
                           });
                         },
                       ),
                       // CUSTOM
                       CustomVoiceActivationContainer(
-                        index: 0,
-                        customPhraseIndex: customPhraseIndex,
-                        recordingCustomPhrases: recordingCustomPhrases,
-                        customPhrases: customPhrases,
-                        callback: () {
-                          print('callback');
+                        index: 4,
+                        voiceActivations: voiceActivations,
+                        selectCallback: (int index) {
+                          selectCallback(index);
+                          setState(() {});
+                        },
+                        saveCallback: (int index, String phrase) {
+                          saveCallback(index, phrase);
+                          setState(() {});
                         },
                       ),
                       CustomVoiceActivationContainer(
-                        index: 1,
-                        customPhraseIndex: customPhraseIndex,
-                        recordingCustomPhrases: recordingCustomPhrases,
-                        customPhrases: customPhrases,
-                        callback: () {
-                          print('callback');
+                        index: 5,
+                        voiceActivations: voiceActivations,
+                        selectCallback: (int index) {
+                          selectCallback(index);
+                          setState(() {});
+                        },
+                        saveCallback: (int index, String phrase) {
+                          saveCallback(index, phrase);
+                          setState(() {});
+                        },
+                      ),
+                      CustomVoiceActivationContainer(
+                        index: 6,
+                        voiceActivations: voiceActivations,
+                        selectCallback: (int index) {
+                          selectCallback(index);
+                          setState(() {});
+                        },
+                        saveCallback: (int index, String phrase) {
+                          saveCallback(index, phrase);
+                          setState(() {});
                         },
                       ),
                     ],
@@ -1452,13 +1488,14 @@ class _CameraScreenState extends State<CameraScreen>
           endingNoises.firstWhere((x) => x[0])[1].toUpperCase());
     }
     if (!voiceActivations[0][0]) {
-      addFieldValue(
-          fields,
-          icons,
-          values,
-          'VOICE ACTIVATION',
-          MdiIcons.textToSpeech,
-          '"${voiceActivations.firstWhere((x) => x[0])[1].toUpperCase()}"');
+      String limitedPhrase =
+          voiceActivations.firstWhere((x) => x[0])[1].toUpperCase();
+      int phraseLimit = 18;
+      if (limitedPhrase.length > phraseLimit) {
+        limitedPhrase = limitedPhrase.substring(0, phraseLimit) + '...';
+      }
+      addFieldValue(fields, icons, values, 'VOICE ACTIVATION',
+          MdiIcons.textToSpeech, '"$limitedPhrase"');
     }
     if (!giantNumbersEnabled) {
       addFieldValue(
@@ -1608,17 +1645,15 @@ class _CameraScreenState extends State<CameraScreen>
 
 class CustomVoiceActivationContainer extends StatefulWidget {
   final int index;
-  final int customPhraseIndex;
-  final List recordingCustomPhrases;
-  final List customPhrases;
-  final Function callback;
+  final List voiceActivations;
+  final Function selectCallback;
+  final Function saveCallback;
 
   CustomVoiceActivationContainer({
     this.index,
-    this.customPhrases,
-    this.recordingCustomPhrases,
-    this.customPhraseIndex,
-    this.callback,
+    this.voiceActivations,
+    this.selectCallback,
+    this.saveCallback,
   });
 
   @override
@@ -1628,19 +1663,51 @@ class CustomVoiceActivationContainer extends StatefulWidget {
 
 class _CustomVoiceActivationContainerState
     extends State<CustomVoiceActivationContainer> {
+  SpeechToText speech = SpeechToText();
+  String phrase = '';
+  bool listening = false;
+
+  statusListener(status) async {
+    print('-- new listening status: $status  @${DateTime.now()}');
+  }
+
+  errorListener(error) async {
+    print('!!!! listening error: $error');
+  }
+
+  resultListener(result) {
+    setState(() {
+      print('hearing ${result.recognizedWords}');
+      if (result.finalResult) {
+        phrase = result.recognizedWords;
+        listening = false;
+      }
+    });
+  }
+
+  recognizeSpeech() async {
+    bool available = await speech.initialize(
+        onStatus: statusListener, onError: errorListener);
+    if (available) {
+      print('starting speech');
+      speech.stop();
+      speech.listen(
+        onResult: resultListener,
+      );
+    } else {
+      print("The user has denied the use of speech recognition.");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    print(widget.index);
-    print(widget.customPhraseIndex);
-    print(widget.recordingCustomPhrases);
-    print(widget.customPhrases);
-    print(widget.callback);
     return Container(
       width: 200,
-      height: 30,
+      height: 45,
       decoration: BoxDecoration(
         border: Border.all(
-          color: widget.customPhraseIndex == 0
+          color: widget.voiceActivations.indexWhere((element) => element[0]) ==
+                  widget.index
               ? Theme.of(context).accentColor
               : Colors.grey,
         ),
@@ -1650,21 +1717,27 @@ class _CustomVoiceActivationContainerState
       child: InkWell(
           child: Stack(
             children: [
-              Align(
-                alignment: Alignment.center,
-                child: AutoSizeText(
-                  widget.customPhrases[widget.index] == ''
-                      ? 'tap to record'
-                      : '"$widget.customPhrase"',
-                  maxLines: 1,
-                  style: TextStyle(
-                    color: widget.customPhraseIndex == 0
-                        ? Colors.black
-                        : Theme.of(context).disabledColor,
-                  ),
-                ),
-              ),
-              !widget.recordingCustomPhrases[widget.index]
+              listening
+                  ? Container()
+                  : Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AutoSizeText(
+                            '"${widget.voiceActivations[widget.index][1]}"',
+                            maxLines: 1,
+                            style: TextStyle(
+                              color: widget.voiceActivations[widget.index][0]
+                                  ? Colors.black
+                                  : Theme.of(context).disabledColor,
+                            ),
+                          ),
+                          SizedBox(height: 5),
+                        ],
+                      ),
+                    ),
+              !listening
                   ? Container()
                   : Align(
                       alignment: Alignment.center,
@@ -1673,21 +1746,60 @@ class _CustomVoiceActivationContainerState
                         color: Colors.black,
                       ),
                     ),
-              !widget.recordingCustomPhrases[widget.index]
-                  ? Container()
-                  : Align(
-                      alignment: Alignment.center,
+              Align(
+                alignment: Alignment.topLeft,
+                child: Text(
+                  'custom text #${widget.index - 3}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+              !listening &&
+                      widget.voiceActivations
+                              .indexWhere((element) => element[0]) ==
+                          widget.index
+                  ? Align(
+                      alignment: Alignment.topRight,
                       child: Text(
-                        widget.customPhrases[widget.index],
+                        'tap again to record',
                         style: TextStyle(
-                          color: Colors.red,
+                          fontSize: 11,
+                          color: Colors.blue,
                         ),
                       ),
-                    ),
+                    )
+                  : Container(),
             ],
           ),
           onTap: () async {
-            // do voice activation here, and pass back the values
+            // if not selected, callback to select
+
+            listening = false;
+            if (widget.voiceActivations.indexWhere((x) => x[0]) !=
+                widget.index) {
+              widget.selectCallback(widget.index);
+              setState(() {});
+            } else {
+              // if not listening, start listening
+              if (!listening) {
+                print('listening');
+                listening = true;
+                setState(() {});
+                recognizeSpeech();
+                DateTime start = DateTime.now();
+                while (DateTime.now().difference(start).inSeconds < 10 &&
+                    listening) {
+                  await Future.delayed(Duration(milliseconds: 100));
+                }
+                print('done listening');
+                listening = false;
+                setState(() {});
+                // callback to save phrase
+                widget.saveCallback(widget.index, phrase);
+              }
+            }
           }),
     );
   }

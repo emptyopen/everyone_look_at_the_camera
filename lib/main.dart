@@ -4,14 +4,14 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 // done:
+// custom phrase for speech to text
 
 // TODO:
-// custom phrase for speech to text
+// "have you brushed your teeth"
+// increase phrase max to 10
 // fix SpeechRecognitionError msg: error_busy, general flow of speech still has issues
 // ensure that if there is a camera error, re-init camera? (prevent "camera loading" stuck)
 // play shutter noises when selected
-// "have you brushed your teeth"
-// increase phrase max to 10
 
 // TODO (maybe):
 // create timer bar for voice timeout
