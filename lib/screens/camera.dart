@@ -151,6 +151,7 @@ class _CameraScreenState extends State<CameraScreen>
   int numPhotos = 2;
   bool cancelled = false;
   SharedPreferences prefs;
+  int customPhraseWordLimit = 10;
 
   @override
   void initState() {
@@ -659,133 +660,154 @@ class _CameraScreenState extends State<CameraScreen>
 
   voiceRecognition() {
     var width = MediaQuery.of(context).size.width;
-    String correctWord1;
-    String correctWord2;
-    String correctWord3;
-    if (voiceActivations[0][0]) {
-      return;
-    } else {
-      String correctPhrase = voiceActivations.firstWhere((x) => x[0])[1];
-      List<String> correctWords = correctPhrase.split(' ');
-      if (correctWords.length == 3) {
-        correctWord1 = correctWords[0].toUpperCase();
-        correctWord2 = correctWords[1].toUpperCase();
-        correctWord3 = correctWords[2].toUpperCase();
-      }
-      if (correctWords.length == 2) {
-        correctWord2 = correctWords[0].toUpperCase();
-        correctWord3 = correctWords[1].toUpperCase();
-      }
-      if (correctWords.length == 1) {
-        correctWord3 = correctWords[0].toUpperCase();
-      }
-    }
-    // transcription = 'reasonable length words';
-    // newTranscription = '';
-    List words = (transcription + ' ' + newTranscription).trim().split(' ');
-    String word1 = words[max(0, words.length - 3)].toUpperCase();
-    String word2 = words[max(0, words.length - 2)].toUpperCase();
-    String word3 = words[max(0, words.length - 1)].toUpperCase();
-    if (angle == 'reversedPortrait') {
-      String tempWord = word1;
-      word1 = word3;
-      word3 = tempWord;
-    }
-    if (words.length < 3) {
-      word2 = '';
-      word3 = '';
-    }
-    if (words.length < 2) {
-      word3 = '';
-    }
-    bool allWordsCorrect = (correctWord1 == word1 || correctWord1 == null) &&
-        (correctWord2 == word2 || correctWord2 == null) &&
-        (correctWord3 == word3 || correctWord3 == null);
-    voiceFontFamily = 'Righteous';
     Color gotItColor = Colors.pink;
-    return Container(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Text(
-          //   '$_accelerometerValues',
-          //   style: TextStyle(
-          //     fontSize: 30,
-          //     color: Colors.red,
-          //   ),
-          // ),
-          Transform.rotate(
-            angle: getAngle(),
-            child: Transform.translate(
-              offset: getOffset(0),
-              child: Container(
-                height: width / 3,
-                child: Center(
-                  child: AutoSizeText(
-                    word1,
-                    maxLines: 1,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: voiceFontFamily,
-                      fontSize: 200,
-                      color: word1 == correctWord1 && allWordsCorrect
-                          ? gotItColor.withAlpha(fadeAnimation.value)
-                          : Colors.white.withAlpha(fadeAnimation.value),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+    transcription = 'reasonable length words';
+    newTranscription = '';
+    String currentPhrase =
+        (transcription + ' ' + newTranscription).trim().split(' ').join('\n');
+    return Transform.rotate(
+      angle: getAngle(),
+      child: Container(
+        height: width,
+        width: width,
+        child: AutoSizeText(
+          currentPhrase.toUpperCase(),
+          maxLines: customPhraseWordLimit,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: voiceFontFamily,
+            fontSize: 200,
+            color: true
+                ? gotItColor.withAlpha(fadeAnimation.value)
+                : Colors.white.withAlpha(fadeAnimation.value),
           ),
-          Transform.rotate(
-            angle: getAngle(),
-            child: Transform.translate(
-              offset: getOffset(1),
-              child: Container(
-                height: width / 3,
-                child: Center(
-                  child: AutoSizeText(
-                    word2,
-                    maxLines: 1,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: voiceFontFamily,
-                      fontSize: 200,
-                      color: word2 == correctWord2 && allWordsCorrect
-                          ? gotItColor.withAlpha(fadeAnimation.value)
-                          : Colors.white.withAlpha(fadeAnimation.value),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Transform.rotate(
-            angle: getAngle(),
-            child: Transform.translate(
-              offset: getOffset(2),
-              child: Container(
-                height: width / 3,
-                child: Center(
-                  child: AutoSizeText(
-                    word3,
-                    maxLines: 1,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: voiceFontFamily,
-                      fontSize: 200,
-                      color: word3 == correctWord3 && allWordsCorrect
-                          ? gotItColor.withAlpha(fadeAnimation.value)
-                          : Colors.white.withAlpha(fadeAnimation.value),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
+    // String correctWord1;
+    // String correctWord2;
+    // String correctWord3;
+    // if (voiceActivations[0][0]) {
+    //   return;
+    // } else {
+    //   String correctPhrase = voiceActivations.firstWhere((x) => x[0])[1];
+    //   List<String> correctWords = correctPhrase.split(' ');
+    //   if (correctWords.length == 3) {
+    //     correctWord1 = correctWords[0].toUpperCase();
+    //     correctWord2 = correctWords[1].toUpperCase();
+    //     correctWord3 = correctWords[2].toUpperCase();
+    //   }
+    //   if (correctWords.length == 2) {
+    //     correctWord2 = correctWords[0].toUpperCase();
+    //     correctWord3 = correctWords[1].toUpperCase();
+    //   }
+    //   if (correctWords.length == 1) {
+    //     correctWord3 = correctWords[0].toUpperCase();
+    //   }
+    // }
+    // List words = (transcription + ' ' + newTranscription).trim().split(' ');
+    // String word1 = words[max(0, words.length - 3)].toUpperCase();
+    // String word2 = words[max(0, words.length - 2)].toUpperCase();
+    // String word3 = words[max(0, words.length - 1)].toUpperCase();
+    // if (angle == 'reversedPortrait') {
+    //   String tempWord = word1;
+    //   word1 = word3;
+    //   word3 = tempWord;
+    // }
+    // if (words.length < 3) {
+    //   word2 = '';
+    //   word3 = '';
+    // }
+    // if (words.length < 2) {
+    //   word3 = '';
+    // }
+    // bool allWordsCorrect = (correctWord1 == word1 || correctWord1 == null) &&
+    //     (correctWord2 == word2 || correctWord2 == null) &&
+    //     (correctWord3 == word3 || correctWord3 == null);
+    // voiceFontFamily = 'Righteous';
+    // return Container(
+    //   child: Column(
+    //     mainAxisAlignment: MainAxisAlignment.center,
+    //     children: [
+    //       // Text(
+    //       //   '$_accelerometerValues',
+    //       //   style: TextStyle(
+    //       //     fontSize: 30,
+    //       //     color: Colors.red,
+    //       //   ),
+    //       // ),
+    //       Transform.rotate(
+    //         angle: getAngle(),
+    //         child: Transform.translate(
+    //           offset: getOffset(0),
+    //           child: Container(
+    //             height: width / 3,
+    //             child: Center(
+    //               child: AutoSizeText(
+    //                 word1,
+    //                 maxLines: 1,
+    //                 textAlign: TextAlign.center,
+    //                 style: TextStyle(
+    //                   fontFamily: voiceFontFamily,
+    //                   fontSize: 200,
+    //                   color: word1 == correctWord1 && allWordsCorrect
+    //                       ? gotItColor.withAlpha(fadeAnimation.value)
+    //                       : Colors.white.withAlpha(fadeAnimation.value),
+    //                 ),
+    //               ),
+    //             ),
+    //           ),
+    //         ),
+    //       ),
+    //       Transform.rotate(
+    //         angle: getAngle(),
+    //         child: Transform.translate(
+    //           offset: getOffset(1),
+    //           child: Container(
+    //             height: width / 3,
+    //             child: Center(
+    //               child: AutoSizeText(
+    //                 word2,
+    //                 maxLines: 1,
+    //                 textAlign: TextAlign.center,
+    //                 style: TextStyle(
+    //                   fontFamily: voiceFontFamily,
+    //                   fontSize: 200,
+    //                   color: word2 == correctWord2 && allWordsCorrect
+    //                       ? gotItColor.withAlpha(fadeAnimation.value)
+    //                       : Colors.white.withAlpha(fadeAnimation.value),
+    //                 ),
+    //               ),
+    //             ),
+    //           ),
+    //         ),
+    //       ),
+    //       Transform.rotate(
+    //         angle: getAngle(),
+    //         child: Transform.translate(
+    //           offset: getOffset(2),
+    //           child: Container(
+    //             height: width / 3,
+    //             child: Center(
+    //               child: AutoSizeText(
+    //                 word3,
+    //                 maxLines: 1,
+    //                 textAlign: TextAlign.center,
+    //                 style: TextStyle(
+    //                   fontFamily: voiceFontFamily,
+    //                   fontSize: 200,
+    //                   color: word3 == correctWord3 && allWordsCorrect
+    //                       ? gotItColor.withAlpha(fadeAnimation.value)
+    //                       : Colors.white.withAlpha(fadeAnimation.value),
+    //                 ),
+    //               ),
+    //             ),
+    //           ),
+    //         ),
+    //       ),
+    //     ],
+    //   ),
+    // );
   }
 
   selectCallback(int index) {
@@ -800,6 +822,9 @@ class _CameraScreenState extends State<CameraScreen>
 
   saveCallback(int index, String phrase) {
     print('saving $phrase for index $index');
+    if (phrase.split(' ').length > 3) {
+      phrase = 'phrase is too long';
+    }
     setState(() {
       voiceActivations[index][1] = phrase;
     });
@@ -1743,7 +1768,7 @@ class _CustomVoiceActivationContainerState
                       alignment: Alignment.center,
                       child: Icon(
                         Icons.mic,
-                        color: Colors.black,
+                        color: Theme.of(context).accentColor,
                       ),
                     ),
               Align(
@@ -1766,7 +1791,7 @@ class _CustomVoiceActivationContainerState
                         'tap again to record',
                         style: TextStyle(
                           fontSize: 11,
-                          color: Colors.blue,
+                          color: Theme.of(context).accentColor,
                         ),
                       ),
                     )
