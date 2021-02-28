@@ -5,13 +5,13 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 // done:
 // custom phrase for speech to text
+// increase phrase max to 7
+// play shutter noises when selected
 
 // TODO:
-// "have you brushed your teeth"
-// increase phrase max to 10
 // fix SpeechRecognitionError msg: error_busy, general flow of speech still has issues
 // ensure that if there is a camera error, re-init camera? (prevent "camera loading" stuck)
-// play shutter noises when selected
+// check that temp photos will be deleted, otherwise manually delete
 
 // TODO (maybe):
 // create timer bar for voice timeout

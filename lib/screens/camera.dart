@@ -126,12 +126,33 @@ class _CameraScreenState extends State<CameraScreen>
     [true, 'None'],
     [false, 'cheese'],
     [false, 'strawberry fields'],
-    [false, 'where is daisy'],
+    [false, 'have you brushed your teeth'],
     [false, 'custom phrase 1'],
     [false, 'custom phrase 2'],
     [false, 'custom phrase 3'],
   ];
-  List<bool> shutterNoise = [false, true, false, false, false];
+  List shutterNoises = [
+    [
+      false,
+      'None',
+    ],
+    [
+      true,
+      'dslr',
+    ],
+    [
+      false,
+      'modern',
+    ],
+    [
+      false,
+      'minolta',
+    ],
+    [
+      false,
+      'polaroid',
+    ]
+  ];
   Animation<int> flashAnimation;
   AnimationController flashAnimationController;
   Animation<int> fadeAnimation;
@@ -151,7 +172,7 @@ class _CameraScreenState extends State<CameraScreen>
   int numPhotos = 2;
   bool cancelled = false;
   SharedPreferences prefs;
-  int customPhraseWordLimit = 10;
+  int customPhraseWordLimit = 7;
 
   @override
   void initState() {
@@ -214,8 +235,19 @@ class _CameraScreenState extends State<CameraScreen>
     setTo(endingNoises, endingNoiseIndex);
     int voiceActivationIndex = prefs.getInt('voiceActivationIndex') ?? 0;
     setTo(voiceActivations, voiceActivationIndex);
+    String customPhrase1 =
+        prefs.getString('customPhrase1') ?? 'custom phrase 1';
+    String customPhrase2 =
+        prefs.getString('customPhrase2') ?? 'custom phrase 2';
+    String customPhrase3 =
+        prefs.getString('customPhrase3') ?? 'custom phrase 3';
+    setState(() {
+      voiceActivations[4][1] = customPhrase1;
+      voiceActivations[5][1] = customPhrase2;
+      voiceActivations[6][1] = customPhrase3;
+    });
     int shutterNoiseIndex = prefs.getInt('shutterNoiseIndex') ?? 0;
-    setTo(shutterNoise, shutterNoiseIndex);
+    setTo(shutterNoises, shutterNoiseIndex);
     numPhotos = prefs.getInt('numPhotos') ?? 2;
     // save prefs
     saveIntPref('countdownTimer', countdownTimer);
@@ -223,6 +255,9 @@ class _CameraScreenState extends State<CameraScreen>
     saveIntPref('countdownNoiseIndex', countdownNoiseIndex);
     saveIntPref('endingNoiseIndex', endingNoiseIndex);
     saveIntPref('voiceActivationIndex', voiceActivationIndex);
+    saveStringPref('customPhrase1', customPhrase1);
+    saveStringPref('customPhrase2', customPhrase2);
+    saveStringPref('customPhrase3', customPhrase3);
     saveIntPref('shutterNoiseIndex', shutterNoiseIndex);
     saveIntPref('numPhotos', numPhotos);
   }
@@ -235,14 +270,18 @@ class _CameraScreenState extends State<CameraScreen>
     prefs.setBool(key, value);
   }
 
+  saveStringPref(key, value) {
+    prefs.setString(key, value);
+  }
+
   playShutter(index) {
-    if (shutterNoise[1]) {
+    if (shutterNoises[1][0]) {
       shutterSoundManagers[index].playLocal('camera-dslr.wav');
-    } else if (shutterNoise[2]) {
+    } else if (shutterNoises[2][0]) {
       shutterSoundManagers[index].playLocal('camera-modern.wav');
-    } else if (shutterNoise[3]) {
+    } else if (shutterNoises[3][0]) {
       shutterSoundManagers[index].playLocal('camera-minolta.wav');
-    } else if (shutterNoise[4]) {
+    } else if (shutterNoises[4][0]) {
       shutterSoundManagers[index].playLocal('camera-polaroid.wav');
     }
   }
@@ -658,173 +697,69 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
-  voiceRecognition() {
+  voiceRecognitionDisplay() {
     var width = MediaQuery.of(context).size.width;
+    voiceFontFamily = 'Righteous';
+    // transcription = 'test test test reasonable length words strawberry fields';
+    // newTranscription = '';
+    String fullTranscription =
+        (transcription + ' ' + newTranscription).trim().toUpperCase();
+    List words = fullTranscription.split(' ');
+    // display only the amount of words in the voice activation phrase
+    String correctPhrase =
+        voiceActivations.firstWhere((x) => x[0])[1].toUpperCase();
+    int displayWordLimit = correctPhrase.split(' ').length;
+    List limitedWords =
+        words.sublist(max(0, words.length - displayWordLimit), words.length);
+    bool gotIt = fullTranscription.contains(correctPhrase);
     Color gotItColor = Colors.pink;
-    transcription = 'reasonable length words';
-    newTranscription = '';
-    String currentPhrase =
-        (transcription + ' ' + newTranscription).trim().split(' ').join('\n');
+    List<Widget> wordColumn = [];
+    limitedWords.forEach((v) {
+      wordColumn.add(Container(
+        height: width / limitedWords.length,
+        child: Center(
+          child: AutoSizeText(
+            v,
+            maxLines: 1,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: voiceFontFamily,
+              fontSize: 200,
+              color: gotIt
+                  ? gotItColor.withAlpha(fadeAnimation.value)
+                  : Colors.white.withAlpha(fadeAnimation.value),
+            ),
+          ),
+        ),
+      ));
+    });
     return Transform.rotate(
       angle: getAngle(),
       child: Container(
         height: width,
         width: width,
-        child: AutoSizeText(
-          currentPhrase.toUpperCase(),
-          maxLines: customPhraseWordLimit,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontFamily: voiceFontFamily,
-            fontSize: 200,
-            color: true
-                ? gotItColor.withAlpha(fadeAnimation.value)
-                : Colors.white.withAlpha(fadeAnimation.value),
-          ),
+        child: Column(
+          children: wordColumn,
         ),
       ),
     );
-    // String correctWord1;
-    // String correctWord2;
-    // String correctWord3;
-    // if (voiceActivations[0][0]) {
-    //   return;
-    // } else {
-    //   String correctPhrase = voiceActivations.firstWhere((x) => x[0])[1];
-    //   List<String> correctWords = correctPhrase.split(' ');
-    //   if (correctWords.length == 3) {
-    //     correctWord1 = correctWords[0].toUpperCase();
-    //     correctWord2 = correctWords[1].toUpperCase();
-    //     correctWord3 = correctWords[2].toUpperCase();
-    //   }
-    //   if (correctWords.length == 2) {
-    //     correctWord2 = correctWords[0].toUpperCase();
-    //     correctWord3 = correctWords[1].toUpperCase();
-    //   }
-    //   if (correctWords.length == 1) {
-    //     correctWord3 = correctWords[0].toUpperCase();
-    //   }
-    // }
-    // List words = (transcription + ' ' + newTranscription).trim().split(' ');
-    // String word1 = words[max(0, words.length - 3)].toUpperCase();
-    // String word2 = words[max(0, words.length - 2)].toUpperCase();
-    // String word3 = words[max(0, words.length - 1)].toUpperCase();
-    // if (angle == 'reversedPortrait') {
-    //   String tempWord = word1;
-    //   word1 = word3;
-    //   word3 = tempWord;
-    // }
-    // if (words.length < 3) {
-    //   word2 = '';
-    //   word3 = '';
-    // }
-    // if (words.length < 2) {
-    //   word3 = '';
-    // }
-    // bool allWordsCorrect = (correctWord1 == word1 || correctWord1 == null) &&
-    //     (correctWord2 == word2 || correctWord2 == null) &&
-    //     (correctWord3 == word3 || correctWord3 == null);
-    // voiceFontFamily = 'Righteous';
-    // return Container(
-    //   child: Column(
-    //     mainAxisAlignment: MainAxisAlignment.center,
-    //     children: [
-    //       // Text(
-    //       //   '$_accelerometerValues',
-    //       //   style: TextStyle(
-    //       //     fontSize: 30,
-    //       //     color: Colors.red,
-    //       //   ),
-    //       // ),
-    //       Transform.rotate(
-    //         angle: getAngle(),
-    //         child: Transform.translate(
-    //           offset: getOffset(0),
-    //           child: Container(
-    //             height: width / 3,
-    //             child: Center(
-    //               child: AutoSizeText(
-    //                 word1,
-    //                 maxLines: 1,
-    //                 textAlign: TextAlign.center,
-    //                 style: TextStyle(
-    //                   fontFamily: voiceFontFamily,
-    //                   fontSize: 200,
-    //                   color: word1 == correctWord1 && allWordsCorrect
-    //                       ? gotItColor.withAlpha(fadeAnimation.value)
-    //                       : Colors.white.withAlpha(fadeAnimation.value),
-    //                 ),
-    //               ),
-    //             ),
-    //           ),
-    //         ),
-    //       ),
-    //       Transform.rotate(
-    //         angle: getAngle(),
-    //         child: Transform.translate(
-    //           offset: getOffset(1),
-    //           child: Container(
-    //             height: width / 3,
-    //             child: Center(
-    //               child: AutoSizeText(
-    //                 word2,
-    //                 maxLines: 1,
-    //                 textAlign: TextAlign.center,
-    //                 style: TextStyle(
-    //                   fontFamily: voiceFontFamily,
-    //                   fontSize: 200,
-    //                   color: word2 == correctWord2 && allWordsCorrect
-    //                       ? gotItColor.withAlpha(fadeAnimation.value)
-    //                       : Colors.white.withAlpha(fadeAnimation.value),
-    //                 ),
-    //               ),
-    //             ),
-    //           ),
-    //         ),
-    //       ),
-    //       Transform.rotate(
-    //         angle: getAngle(),
-    //         child: Transform.translate(
-    //           offset: getOffset(2),
-    //           child: Container(
-    //             height: width / 3,
-    //             child: Center(
-    //               child: AutoSizeText(
-    //                 word3,
-    //                 maxLines: 1,
-    //                 textAlign: TextAlign.center,
-    //                 style: TextStyle(
-    //                   fontFamily: voiceFontFamily,
-    //                   fontSize: 200,
-    //                   color: word3 == correctWord3 && allWordsCorrect
-    //                       ? gotItColor.withAlpha(fadeAnimation.value)
-    //                       : Colors.white.withAlpha(fadeAnimation.value),
-    //                 ),
-    //               ),
-    //             ),
-    //           ),
-    //         ),
-    //       ),
-    //     ],
-    //   ),
-    // );
   }
 
   selectCallback(int index) {
-    print('selecting $index');
     // select custom phrase index, deselect suggested phrases
     setState(() {
       setTo(voiceActivations, index);
       saveIntPref('voiceActivationIndex', index);
     });
-    print(voiceActivations);
   }
 
   saveCallback(int index, String phrase) {
-    print('saving $phrase for index $index');
-    if (phrase.split(' ').length > 3) {
+    if (phrase.split(' ').length > customPhraseWordLimit) {
       phrase = 'phrase is too long';
+    } else if (phrase.length == 0) {
+      phrase = 'no words recorded';
     }
+    saveStringPref('customPhrase${index - 3}', phrase);
     setState(() {
       voiceActivations[index][1] = phrase;
     });
@@ -1174,7 +1109,6 @@ class _CameraScreenState extends State<CameraScreen>
                               }
                             }
                             saveIntPref('voiceActivationIndex', index);
-                            print(voiceActivations);
                           });
                         },
                       ),
@@ -1234,28 +1168,32 @@ class _CameraScreenState extends State<CameraScreen>
                       Text('Shutter noise'),
                       SizedBox(height: 10),
                       WrapToggleTextButtons(
-                        textList: [
-                          'None',
-                          'dslr',
-                          'modern',
-                          'minolta',
-                          'polaroid',
-                        ],
-                        isSelected: shutterNoise,
+                        textList:
+                            shutterNoises.map((x) => x[1] as String).toList(),
+                        isSelected:
+                            shutterNoises.map((x) => x[0] as bool).toList(),
                         onPressed: (int index) {
                           softVibrate();
                           setState(() {
                             for (int buttonIndex = 0;
-                                buttonIndex < shutterNoise.length;
+                                buttonIndex < shutterNoises.length;
                                 buttonIndex++) {
                               if (buttonIndex == index) {
-                                shutterNoise[buttonIndex] = true;
+                                shutterNoises[buttonIndex][0] = true;
                               } else {
-                                shutterNoise[buttonIndex] = false;
+                                shutterNoises[buttonIndex][0] = false;
                               }
                             }
                             saveIntPref('shutterNoiseIndex', index);
                           });
+                          // play sound
+                          List shutterNoise =
+                              shutterNoises.firstWhere((x) => x[0]);
+                          sampleSoundManager.audioPlayer.stop();
+                          if (!shutterNoises[0][0]) {
+                            sampleSoundManager
+                                .playLocal('camera-${shutterNoise[1]}.wav');
+                          }
                         },
                       ),
                     ],
@@ -1609,7 +1547,7 @@ class _CameraScreenState extends State<CameraScreen>
             ),
             Align(
               alignment: Alignment.center,
-              child: voiceRecognition(),
+              child: voiceRecognitionDisplay(),
             ),
             Positioned(
               child: cancelButton(),
@@ -1799,8 +1737,7 @@ class _CustomVoiceActivationContainerState
             ],
           ),
           onTap: () async {
-            // if not selected, callback to select
-
+            // if not selected, callback to select\
             listening = false;
             if (widget.voiceActivations.indexWhere((x) => x[0]) !=
                 widget.index) {
